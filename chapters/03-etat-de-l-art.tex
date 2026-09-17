@@ -1,0 +1,177 @@
+% ============================================================================
+%  Chapitre 3 — État de l'art
+%  Cible : 12 à 15 pages. À rédiger J4-J5.
+%
+%  RÈGLE : chaque section se termine par un paragraphe « ce que l'on retient
+%  pour ce travail ». Un état de l'art qui ne redescend pas sur le cas traité
+%  est systématiquement sanctionné.
+% ============================================================================
+\chapter{État de l'art}
+\label{chap:etat-art}
+
+\section{Intégration et livraison continues}
+\label{sec:art-cicd}
+
+\subsection{Origines et définitions}
+L'intégration continue est définie comme la pratique consistant à intégrer
+fréquemment le travail de chaque développeur dans une ligne principale
+partagée, chaque intégration étant validée par une construction et une
+exécution automatisées des tests~\cite{fowler2006ci,duvall2007ci}. La livraison
+continue étend ce principe en maintenant en permanence le logiciel dans un état
+déployable~\cite{humble2010cd}.
+
+\aecrire{Distinguer clairement intégration continue, livraison continue et
+déploiement continu. Préciser laquelle de ces trois pratiques est visée dans ce
+travail et pourquoi le déploiement continu n'est pas applicable à un produit
+matériel certifié.}
+
+\subsection{Bénéfices et coûts rapportés}
+\aecrire{S'appuyer sur les études empiriques : Hilton et al. sur l'usage et le
+coût de l'intégration continue~\cite{hilton2016usage}, Vasilescu et al. sur
+les effets qualité et productivité~\cite{vasilescu2015quality}, Ståhl et Bosch
+sur la variabilité des mises en œuvre industrielles~\cite{stahl2014modeling}.
+Mentionner les coûts : maintenance de la chaîne, temps d'attente, tests
+instables.}
+
+\subsection{Revues systématiques}
+La revue systématique de Shahin et al.~\cite{shahin2017continuous} recense les
+approches, outils et difficultés associés à l'intégration, la livraison et le
+déploiement continus, et identifie notamment la durée des constructions et la
+complexité des environnements de test comme obstacles récurrents.
+
+\subsection{Ce que l'on retient}
+\aecrire{2 à 3 phrases reliant explicitement au cas traité.}
+
+\section{Spécificités des systèmes embarqués}
+\label{sec:art-embarque}
+
+\aecrire{Cœur de l'originalité du sujet. Points à traiter : compilation
+croisée, dépendance au matériel pour les tests, durée des constructions de
+distributions complètes, cycles de certification, impossibilité de déployer en
+continu. S'appuyer sur Mårtensson et al.~\cite{martensson2016embedded} et
+Lwakatare et al.~\cite{lwakatare2019devops}.}
+
+\subsection{Construction de distributions Linux embarquées}
+\aecrire{Présenter Yocto/OpenEmbedded : notion de couche, de recette, de
+machine, de distribution ; rôle du cache d'état partagé et du cache de
+téléchargement dans la réduction du temps de construction. Présenter kas comme
+outil de description déclarative de la configuration de construction. Citer la
+documentation du projet Yocto~\cite{yoctoref}.}
+
+\subsection{Ce que l'on retient}
+\aecrire{Justifier la séparation en deux chaînes distinctes, applicative et
+distribution, qui sera reprise au chapitre~4.}
+
+\section{Reproductibilité de la construction}
+\label{sec:art-reproductibilite}
+
+La reproductibilité des constructions, c'est-à-dire la capacité à obtenir un
+artefact binaire identique à partir d'une même révision du code source, est
+présentée par Lamb et Zacchiroli comme un levier d'intégrité de la chaîne
+d'approvisionnement logicielle~\cite{lamb2022reproducible}.
+
+\aecrire{Articuler deux niveaux : (1) reproductibilité \emph{stricte} au sens
+bit à bit, difficile à atteindre ; (2) reproductibilité \emph{de
+l'environnement}, par conteneurisation et épinglage des versions, qui est
+l'objectif réaliste retenu ici. Assumer ce choix explicitement, c'est un point
+de discussion probable en soutenance.}
+
+\section{Analyse statique de code}
+\label{sec:art-sast}
+
+\aecrire{Présenter le principe de l'analyse statique, puis les résultats
+empiriques : Beller et al. sur l'état de l'analyse statique dans les projets
+open source~\cite{beller2016analyzing}, Zampetti et al. sur l'intégration des
+outils d'analyse statique dans les chaînes d'intégration
+continue~\cite{zampetti2017static}. Traiter la question centrale des faux
+positifs et de la stratégie de traitement de la dette initiale.}
+
+\subsection{Politique de blocage}
+\aecrire{Question de conception importante : faire échouer la construction
+sur détection de défaut, ou seulement notifier ? Présenter les deux postures
+et leurs conséquences sur l'adoption par les équipes. Ce point sera tranché
+au chapitre~4 et discuté au chapitre~6.}
+
+\section{Sécurité de la chaîne d'approvisionnement logicielle}
+\label{sec:art-supply-chain}
+
+\subsection{Menaces}
+Ohm et al. proposent une taxonomie des attaques visant la chaîne
+d'approvisionnement des logiciels libres~\cite{ohm2020backstabber}.
+
+\subsection{Nomenclature logicielle}
+La nomenclature logicielle (\gls{sbom}) recense les composants entrant dans la
+composition d'un produit. Les éléments minimaux attendus ont été définis par la
+NTIA~\cite{ntia2021sbom}, et le format SPDX a été normalisé sous la référence
+ISO/IEC~5962~\cite{iso5962}.
+
+\subsection{Analyse de composition logicielle}
+\aecrire{Principe de l'analyse de composants binaires : identification des
+composants embarqués dans un artefact compilé, corrélation avec les bases
+\gls{cve}, scores \gls{cvss}. Expliquer pourquoi l'analyse binaire est plus
+adaptée qu'une analyse des seuls fichiers de dépendances dans un contexte
+Yocto.}
+
+\section{Cadre normatif et réglementaire}
+\label{sec:art-normes}
+
+La norme IEC~62443-4-1~\cite{iec62443_4_1} définit les exigences de cycle de
+développement sécurisé pour les produits d'automatisation industrielle. Le
+règlement (UE) 2024/2847~\cite{cra2024} introduit des obligations de
+cybersécurité pour les produits comportant des éléments numériques, dont la
+tenue d'une nomenclature logicielle et le traitement des vulnérabilités
+pendant la durée de support.
+
+\aecrire{Établir explicitement la correspondance entre les pratiques mises en
+œuvre au chapitre~5 et les exigences normatives. C'est un argument fort, et
+c'est ce qui différencie ce mémoire d'un simple travail d'outillage.}
+
+\aecrire{Compléter le tableau ci-dessous à partir du texte de la norme :
+pratiques de gestion des défauts de sécurité, de vérification et de gestion des
+composants tiers. Une ligne par exigence, avec renvoi vers la section du
+chapitre~5 qui la couvre.}
+
+\begin{table}[H]
+\centering
+\caption{Correspondance entre exigences normatives et pratiques mises en œuvre}
+\label{tab:art-normes}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Exigence} & \textbf{Intitulé} & \textbf{Mise en œuvre} \\
+\midrule
+ & & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Infrastructure as code et exécuteurs éphémères}
+\label{sec:art-iac}
+
+\aecrire{Présenter le principe de l'infrastructure décrite en code, à partir
+de Morris~\cite{morris2020iac} et de la cartographie systématique de Rahman et
+al.~\cite{rahman2019iac}. Traiter ensuite la question spécifique de la
+sécurité des exécuteurs auto-hébergés : isolation entre exécutions,
+non-persistance, gestion des secrets, portée des identités d'accès au
+fournisseur cloud.}
+
+\section{Mesure de la performance de livraison logicielle}
+\label{sec:art-dora}
+
+Les travaux du programme \gls{dora} identifient quatre indicateurs de
+performance de livraison : la fréquence de déploiement, le délai de mise en
+production, le taux d'échec des changements et le délai de
+rétablissement~\cite{forsgren2018accelerate}.
+
+\aecrire{Discuter honnêtement l'applicabilité de ces quatre indicateurs à un
+produit embarqué qui n'est pas déployé en continu. Proposer les adaptations
+retenues (par exemple : fréquence d'intégration au lieu de fréquence de
+déploiement, délai de rétablissement d'une construction cassée). Cette
+adaptation argumentée constitue en soi une contribution méthodologique.}
+
+\section{Synthèse et positionnement}
+\label{sec:art-synthese}
+
+\aecrire{Une page. Reprendre les quatre sous-questions de recherche et
+indiquer, pour chacune, ce que la littérature apporte et ce qui reste à
+concevoir dans le cas industriel traité. Terminer par un tableau de synthèse
+positionnant ce travail.}

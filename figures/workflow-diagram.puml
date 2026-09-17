@@ -1,0 +1,91 @@
+@startuml
+title BlueBird 1.2 CI Workflows Execution
+
+skinparam package {
+  BackgroundColor #E8EAF6
+  BorderColor #3F51B5
+  BorderThickness 2
+  FontStyle bold
+}
+skinparam rectangle {
+  BackgroundColor<<trigger>> #E1F5FE
+  BackgroundColor<<job>> #C8E6C9
+  BackgroundColor<<step>> #F0F4C3
+  BackgroundColor<<container>> #FFE0B2
+  BorderColor<<container>> #FF9800
+  BorderThickness<<container>> 3
+}
+
+' pm77xx-app workflow and container
+rectangle "Container: bbbuild_cov_ut:1.2\nRunner: orchestrator-runner" <<container>> {
+  package "pm77xx-app Workflow" {
+    rectangle "pm77xx-app Triggers" <<trigger>> {
+      usecase "Schedule:\nWeekdays 00:00 UTC" as app_sched
+      usecase "Manual Dispatch" as app_manual
+      usecase "Workflow Call" as app_call
+    }
+    
+    rectangle "Build_Scan_Tests Job" <<job>> as app_build {
+      rectangle "1. Setup SSH Keys" as step1
+      rectangle "2. Setup Env Vars" as step2
+      rectangle "3. Checkout CI Repo" as step3
+      rectangle "4. Checkout App Code" as step4
+      rectangle "5. Create Build Dirs" as step5
+      rectangle "6a. Build with Coverity\n(if run_cov_analysis=true)" as step6a
+      rectangle "6b. Build with CMake\n(if run_cov_analysis=false)" as step6b
+      rectangle "7. Run Unit Tests" as step7
+      rectangle "8. Upload Artifacts" as step8
+      
+      step1 -down-> step2
+      step2 -down-> step3
+      step3 -down-> step4
+      step4 -down-> step5
+      step5 -down-> step6a
+      step5 -down-> step6b
+      step6a -down-> step7
+      step6b -down-> step7
+      step7 -down-> step8
+    }
+    
+    rectangle "publish_results Job" <<job>> as app_publish {
+      rectangle "1. Download Test Results" as pub1
+      rectangle "2. Publish to GitHub" as pub2
+      pub1 -down-> pub2
+    }
+    
+    app_sched -down-> app_build
+    app_manual -down-> app_build
+    app_call -down-> app_build
+    app_build -down-> app_publish : needs
+  }
+}
+
+' pm77xx-yocto workflow and container
+rectangle "Container: senux-devtools-24.04-noble:1.0.34\nRunner: orchestrator-runner" <<container>> {
+  package "pm77xx-yocto Workflow" {
+    rectangle "pm77xx-yocto Triggers" <<trigger>> {
+      usecase "Schedule:\nWeekdays 00:00 UTC" as yocto_sched
+      usecase "Manual Dispatch" as yocto_manual
+    }
+    
+    rectangle "build Job" <<job>> as yocto_build {
+      rectangle "1. Setup SSH" as ystep1
+      rectangle "2. Checkout Yocto Repo" as ystep2
+      rectangle "3. Setup site.conf" as ystep3
+      rectangle "4. Create Build Dirs" as ystep4
+      rectangle "5. Prepare User Context" as ystep5
+      rectangle "6. Build Yocto Image" as ystep6
+      
+      ystep1 -down-> ystep2
+      ystep2 -down-> ystep3
+      ystep3 -down-> ystep4
+      ystep4 -down-> ystep5
+      ystep5 -down-> ystep6
+    }
+    
+    yocto_sched -down-> yocto_build
+    yocto_manual -down-> yocto_build
+  }
+}
+
+@enduml

@@ -1,0 +1,62 @@
+% ============================================================================
+%  Mémoire de Master — Ingénierie des Systèmes et Réseaux
+%  Conception et mise en œuvre d'une infrastructure CI/CD
+%  pour le firmware d'un produit de comptage d'énergie
+%
+%  Compilation :  make        (via Docker, voir Makefile)
+%                 latexmk -pdf main.tex   (si TeX Live installé localement)
+% ============================================================================
+% Classe book : nécessaire pour \frontmatter / \mainmatter / \backmatter.
+\documentclass[a4paper,11pt,twoside,openright]{book}
+
+\input{preamble}
+\input{config/acronymes}
+
+\begin{document}
+
+% --------------------------------------------------------------- Pages liminaires
+\frontmatter
+\pagenumbering{roman}
+
+\input{frontmatter/page-de-garde}
+\input{frontmatter/confidentialite}
+\input{frontmatter/remerciements}
+\input{frontmatter/resume}
+
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+\cleardoublepage
+\printglossary[type=\acronymtype,title={Liste des acronymes}]
+
+\ifthenelse{\boolean{draftmode}}{\cleardoublepage\listoftodos[Travail restant]}{}
+
+% --------------------------------------------------------------- Corps du mémoire
+\mainmatter
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\include{chapters/01-introduction}
+\include{chapters/02-contexte}
+\include{chapters/03-etat-de-l-art}
+\include{chapters/04-besoins-architecture}
+\include{chapters/05-mise-en-oeuvre}
+\include{chapters/06-evaluation}
+\include{chapters/07-conclusion}
+
+% --------------------------------------------------------------- Bibliographie
+\backmatter
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Bibliographie}
+\printbibliography[title={Bibliographie}]
+
+% --------------------------------------------------------------- Annexes
+\appendix
+\include{annexes/a-extraits-code}
+\include{annexes/b-donnees-mesures}
+
+\end{document}

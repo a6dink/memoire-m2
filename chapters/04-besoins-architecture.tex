@@ -1,0 +1,166 @@
+% ============================================================================
+%  Chapitre 4 — Analyse des besoins et architecture cible
+%  Cible : 10 à 12 pages. À rédiger J6.
+% ============================================================================
+\chapter{Analyse des besoins et architecture cible}
+\label{chap:besoins}
+
+\section{Démarche de recueil des exigences}
+\label{sec:bes-demarche}
+
+\aecrire{Décrire comment les exigences ont été établies : entretiens avec les
+développeurs firmware, échanges avec l'équipe cybersécurité produit,
+contraintes imposées par la direction des systèmes d'information, analyse des
+limites relevées en section~\ref{ssec:ctx-limites}. Préciser le nombre de
+personnes consultées : cela crédibilise la démarche.}
+
+\section{Parties prenantes}
+\label{sec:bes-parties-prenantes}
+
+\begin{table}[H]
+\centering
+\caption{Parties prenantes et attentes principales}
+\label{tab:bes-parties}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Partie prenante} & \textbf{Attente principale} \\
+\midrule
+Développeur firmware & Retour rapide et fiable sur ses modifications \\
+Responsable qualité & Couverture de test et défauts historisés \\
+Référent cybersécurité & Inventaire des composants et suivi des vulnérabilités \\
+Responsable produit & Prévisibilité des jalons de livraison \\
+Équipe DevOps & Chaîne maintenable et coût d'exécution maîtrisé \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Exigences fonctionnelles}
+\label{sec:bes-exigences-f}
+
+\begin{table}[H]
+\centering
+\caption{Exigences fonctionnelles}
+\label{tab:bes-ef}
+\begin{tabularx}{\textwidth}{@{}l X l l@{}}
+\toprule
+\textbf{Réf.} & \textbf{Exigence} & \textbf{Limite} & \textbf{Priorité} \\
+\midrule
+EF1 & Fournir un environnement de compilation identique en local et en
+      intégration & L1 & Haute \\
+EF2 & Construire automatiquement l'application selon une matrice de
+      configurations & L2 & Haute \\
+EF3 & Construire automatiquement les variantes d'image de la distribution & L2 & Haute \\
+EF4 & Exécuter une analyse statique du code à chaque construction & L3 & Haute \\
+EF5 & Analyser la composition des artefacts livrables & L4 & Haute \\
+EF6 & Exécuter les tests unitaires et d'intégration et publier leurs résultats
+      & L5 & Haute \\
+EF7 & Mesurer et historiser la couverture de code & L5 & Moyenne \\
+EF8 & Publier les artefacts versionnés dans le référentiel d'entreprise & --- & Moyenne \\
+EF9 & Restituer une synthèse lisible des résultats à chaque exécution & L5 & Moyenne \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\aecrire{Vérifier que chaque exigence est (a) vérifiable et (b) rattachée à
+une limite du chapitre~2. Supprimer toute exigence non traçable.}
+
+\section{Exigences non fonctionnelles}
+\label{sec:bes-exigences-nf}
+
+\begin{table}[H]
+\centering
+\caption{Exigences non fonctionnelles}
+\label{tab:bes-enf}
+\begin{tabularx}{\textwidth}{@{}l X >{\raggedright\arraybackslash}p{5cm}@{}}
+\toprule
+\textbf{Réf.} & \textbf{Exigence} & \textbf{Critère de vérification} \\
+\midrule
+ENF1 & Reproductibilité de l'environnement de compilation & Versions épinglées, image immuable \\
+ENF2 & Durée d'une construction applicative complète & Seuil cible à fixer \\
+ENF3 & Administration de l'infrastructure par le code & Aucune action manuelle sur les machines \\
+ENF4 & Confidentialité des secrets & Aucun secret en clair dans les dépôts \\
+ENF5 & Maintenabilité de la chaîne & Logique métier dans les scripts, non dans le YAML \\
+ENF6 & Observabilité & Indicateurs collectés automatiquement et historisés \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Choix technologiques}
+\label{sec:bes-choix}
+
+\aecrire{Section décisive pour la note. Le jury doit voir un choix
+\emph{argumenté}, pas un choix \emph{subi}. Pour chaque décision : critères,
+options envisagées, décision, conséquences assumées.}
+
+\subsection{Plateforme d'orchestration}
+\label{ssec:bes-choix-plateforme}
+
+\begin{table}[H]
+\centering
+\caption{Comparaison des plateformes d'orchestration envisagées}
+\label{tab:bes-comparatif-plateforme}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.2cm} X X X@{}}
+\toprule
+\textbf{Critère} & \textbf{GitHub Actions} & \textbf{Jenkins} & \textbf{GitLab CI} \\
+\midrule
+Intégration au \gls{vcs} en place & & & \\
+Coût d'exploitation & & & \\
+Support entreprise interne & & & \\
+Exécuteurs auto-hébergés & & & \\
+Réutilisabilité des workflows & & & \\
+Courbe d'apprentissage équipe & & & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\aecrire{Remplir le tableau puis conclure. Argument déterminant à expliciter :
+le \gls{vcs} d'entreprise est déjà GitHub Enterprise et un service mutualisé
+d'exécuteurs est fourni par la DSI, ce qui écarte le coût d'exploitation d'une
+solution auto-administrée.}
+
+\subsection{Principe de conception : logique dans les scripts}
+\label{ssec:bes-choix-scripts}
+
+\aecrire{Justifier la décision de maintenir la logique dans des scripts shell
+et des cibles Make plutôt que dans les fichiers de description de workflow.
+Trois arguments : exécutabilité en local par le développeur, testabilité,
+réduction de l'adhérence à la plateforme d'orchestration. Cette décision est
+structurante, la mettre en évidence.}
+
+\subsection{Autres décisions structurantes}
+\aecrire{Traiter de la même façon : conteneurisation de l'environnement de
+compilation, choix de kas plutôt qu'un pilotage direct de BitBake, choix d'une
+analyse de composants binaires, choix d'une base de données de séries
+temporelles pour l'historisation.}
+
+\section{Architecture cible}
+\label{sec:bes-architecture}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{workflow-diagram}
+\caption{Architecture générale de la chaîne d'intégration et de livraison}
+\label{fig:bes-architecture}
+\end{figure}
+
+\aecrire{Figure générée depuis \texttt{ci/docs/images/workflow-diagram.puml}
+via \texttt{make figures}. Vérifier la lisibilité à l'impression et, si
+nécessaire, alléger le diagramme source plutôt que de réduire l'échelle.}
+
+\aecrire{Décrire l'architecture en suivant le flux : déclencheur, allocation
+d'un exécuteur éphémère, récupération des sources, exécution dans le
+conteneur de compilation, analyses, tests, publication des artefacts,
+émission des métriques. Une figure plus une page de texte suffisent.}
+
+\section{Décomposition en chaînes}
+\label{sec:bes-decoupage}
+
+\aecrire{Justifier la séparation en trois chaînes : construction applicative,
+construction de la distribution, publication de l'image de compilation.
+Argument principal : des rythmes et des durées de construction incompatibles
+au sein d'une même chaîne.}
+
+\section{Synthèse}
+\label{sec:bes-synthese}
+
+\aecrire{Transition vers le chapitre~5.}

@@ -1,0 +1,41 @@
+@startuml pm77xx-app-workflow
+title PM77xx-App Workflow (UML Activity - High Contrast)
+
+' Dark background with bright, high-contrast colors
+skinparam backgroundColor #0b0b0b
+skinparam activityBackgroundColor #1e1e1e
+skinparam activityBorderColor #ffffff
+skinparam activityFontColor #ffffff
+skinparam arrowColor #ffffff
+skinparam partitionBackgroundColor #111111
+skinparam partitionBorderColor #888888
+
+start
+
+partition "GitHub Actions" {
+  :Checkout CI repo;
+  :Checkout App repo (with submodules);
+  :Setup workspace & write auth key (`COV_AUTH_JSON` → `AUTH_KEY_FILE`);
+}
+
+partition "Builder Container" {
+  if (run_cov_analysis?) then (yes)
+    :Capture (cov_build.sh capture);
+    :Analyze (cov_build.sh analyze);
+    :Commit (cov_build.sh commit);
+    :Extract issues (extract_cov.sh → pyCovXtract.py);
+  else (no)
+    :Build only (cmake + make);
+  endif
+
+  :Run unit tests (sdp.service.all.unit.tests.sh);
+  :Upload artifacts (test XML, Coverity HTML);
+}
+
+partition "Publish Results" {
+  :Download test results (publish_results job);
+  :Publish results (EnricoMi/publish-unit-test-result-action);
+}
+
+stop
+@enduml

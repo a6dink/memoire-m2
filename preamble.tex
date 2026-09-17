@@ -1,0 +1,172 @@
+% ============================================================================
+%  preamble.tex — Configuration du document
+% ============================================================================
+
+% ---------------------------------------------------------------------------
+%  Langue et encodage
+% ---------------------------------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}
+\usepackage[autostyle,french=guillemets]{csquotes}
+\frenchsetup{SmallCapsFigTabCaptions=false}
+
+% ---------------------------------------------------------------------------
+%  Mise en page
+% ---------------------------------------------------------------------------
+\usepackage[a4paper,inner=3cm,outer=2.5cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{emptypage}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\nouppercase{\leftmark}}
+\fancyhead[LO]{\nouppercase{\rightmark}}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[C]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+}
+
+% ---------------------------------------------------------------------------
+%  Graphiques, tableaux, flottants
+% ---------------------------------------------------------------------------
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{amssymb}   % \checkmark
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+% ---------------------------------------------------------------------------
+%  Listings (extraits YAML, Bash, Dockerfile, HCL)
+% ---------------------------------------------------------------------------
+\usepackage{listings}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{210,210,210}
+\definecolor{codekw}{RGB}{0,86,160}
+\definecolor{codestr}{RGB}{163,21,21}
+\definecolor{codecmt}{RGB}{96,139,78}
+
+\lstdefinestyle{sestyle}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codekw}\bfseries,
+  stringstyle=\color{codestr},
+  commentstyle=\color{codecmt}\itshape,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  frame=single,
+  rulecolor=\color{codeframe},
+  breaklines=true,
+  breakatwhitespace=true,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  literate=%
+    {é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {à}{{\`a}}1
+    {ù}{{\`u}}1 {ç}{{\c c}}1 {ô}{{\^o}}1 {î}{{\^\i}}1
+}
+\lstset{style=sestyle}
+
+% Langages non connus de listings
+\lstdefinelanguage{yaml}{
+  keywords={true,false,null,on,off,needs,runs-on,uses,with,env,jobs,steps,name,
+            strategy,matrix,inputs,secrets,if,run,outputs,permissions},
+  sensitive=false,
+  comment=[l]{\#},
+  morestring=[b]",
+  morestring=[b]'
+}
+\lstdefinelanguage{docker}{
+  keywords={FROM,RUN,COPY,ADD,ARG,ENV,WORKDIR,USER,ENTRYPOINT,CMD,LABEL,SHELL,AS},
+  sensitive=true,
+  comment=[l]{\#},
+  morestring=[b]"
+}
+\lstdefinelanguage{hcl}{
+  keywords={resource,module,variable,output,provider,locals,data,terraform,for_each,source},
+  sensitive=true,
+  comment=[l]{\#},
+  morestring=[b]"
+}
+
+% ---------------------------------------------------------------------------
+%  Bibliographie
+% ---------------------------------------------------------------------------
+\usepackage[backend=biber,style=numeric,sorting=nyt,maxbibnames=99,giveninits=true]{biblatex}
+\addbibresource{biblio.bib}
+
+% ---------------------------------------------------------------------------
+%  Acronymes / glossaire
+% ---------------------------------------------------------------------------
+\usepackage[acronym,nonumberlist,nopostdot,nomain]{glossaries}
+\makeglossaries
+
+% ---------------------------------------------------------------------------
+%  Notes de rédaction  (mettre \setboolean{draftmode}{false} pour la version finale)
+% ---------------------------------------------------------------------------
+\usepackage{ifthen}
+\newboolean{draftmode}
+\setboolean{draftmode}{true}
+
+\usepackage[colorinlistoftodos,prependcaption,textsize=footnotesize,french]{todonotes}
+\ifthenelse{\boolean{draftmode}}{}{\presetkeys{todonotes}{disable}{}}
+
+% Raccourcis de rédaction
+\newcommand{\aecrire}[1]{\todo[inline,color=orange!25]{À RÉDIGER : #1}}
+\newcommand{\chiffre}[1]{\todo[inline,color=red!25]{CHIFFRE À MESURER : #1}\textbf{[XX]}}
+\newcommand{\verifier}[1]{\todo[color=blue!25]{VÉRIFIER : #1}}
+
+% ---------------------------------------------------------------------------
+%  ANONYMISATION
+%  Tant que l'autorisation de publication n'est pas obtenue, basculer
+%  \setboolean{confidentiel}{true} : tous les noms sensibles sont remplacés.
+% ---------------------------------------------------------------------------
+\newboolean{confidentiel}
+\setboolean{confidentiel}{false}
+
+\ifthenelse{\boolean{confidentiel}}{%
+  \newcommand{\Entreprise}{l'entreprise}
+  \newcommand{\Produit}{le produit P}
+  \newcommand{\ProduitCourt}{P}
+  \newcommand{\Firmware}{le firmware applicatif}
+  \newcommand{\Carte}{la carte cible}
+  \newcommand{\SrvCoverity}{\texttt{<serveur-sast-interne>}}
+  \newcommand{\SrvBDBA}{\texttt{<serveur-sca-interne>}}
+  \newcommand{\SrvArtifacts}{\texttt{<artifactory-interne>}}
+  \newcommand{\SrvGit}{\texttt{<github-entreprise>}}
+}{%
+  \newcommand{\Entreprise}{Schneider Electric}
+  \newcommand{\Produit}{le PM77xx}
+  \newcommand{\ProduitCourt}{PM77xx}
+  \newcommand{\Firmware}{SDP}
+  \newcommand{\Carte}{bru99379-kp0}
+  \newcommand{\SrvCoverity}{\texttt{coverity-embu.se.com}}
+  \newcommand{\SrvBDBA}{\texttt{bdba.schneider-electric.com}}
+  \newcommand{\SrvArtifacts}{\texttt{global-artifacts.se.com}}
+  \newcommand{\SrvGit}{\texttt{github.schneider-electric.com}}
+}
+
+% ---------------------------------------------------------------------------
+%  Hyperliens (à charger en dernier ou presque)
+% ---------------------------------------------------------------------------
+\usepackage[hidelinks,breaklinks=true]{hyperref}
+\hypersetup{
+  pdftitle={Conception et mise en oeuvre d'une infrastructure CI/CD pour le firmware d'un produit de comptage d'energie},
+  pdfsubject={Memoire de Master Ingenierie des Systemes et Reseaux},
+  pdfkeywords={CI/CD, DevOps, systemes embarques, Yocto, GitHub Actions, analyse statique, SBOM, Infrastructure as Code}
+}
+\usepackage[french]{cleveref}

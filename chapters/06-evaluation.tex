@@ -1,0 +1,201 @@
+% ============================================================================
+%  Chapitre 6 — Évaluation et résultats
+%  Cible : 10 à 12 pages. À rédiger J10-J11.
+%
+%  AVERTISSEMENT : ce chapitre ne peut être rédigé qu'une fois les mesures
+%  collectées (voir scripts/collecte-mesures.sh et annexe B).
+%  Aucune valeur ne doit être inventée. Si une mesure « avant » n'est pas
+%  disponible, l'écrire explicitement et en faire une limite méthodologique.
+% ============================================================================
+\chapter{Évaluation et résultats}
+\label{chap:evaluation}
+
+\section{Protocole d'évaluation}
+\label{sec:eval-protocole}
+
+\subsection{Questions d'évaluation}
+L'évaluation vise à répondre aux quatre sous-questions posées en
+section~\ref{sec:intro-problematique} :
+
+\begin{description}[style=nextline,leftmargin=1.5cm]
+  \item[QE1] L'environnement de construction obtenu est-il effectivement
+    reproductible ?
+  \item[QE2] L'intégration des analyses de sécurité améliore-t-elle la
+    détection des défauts sans dégrader la vélocité ?
+  \item[QE3] Les indicateurs collectés permettent-ils de piloter la qualité ?
+  \item[QE4] L'infrastructure d'exécution est-elle maîtrisée en coût et en
+    effort d'administration ?
+\end{description}
+
+\subsection{Sources de mesure}
+\begin{table}[H]
+\centering
+\caption{Sources des mesures utilisées}
+\label{tab:eval-sources}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Indicateur} & \textbf{Source} & \textbf{Période} \\
+\midrule
+Durée et issue des exécutions & Interface de la plateforme d'orchestration & \\
+Couverture de code & Rapports de l'outil de couverture & \\
+Défauts d'analyse statique & Vues du serveur d'analyse & \\
+Vulnérabilités de composants & Rapports de l'analyseur binaire & \\
+Effort d'administration & Relevé déclaratif auprès de l'équipe & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\aecrire{Préciser la période d'observation, le nombre d'exécutions prises en
+compte, et le traitement des valeurs aberrantes (exécutions interrompues,
+indisponibilité d'un service externe). Une évaluation sans protocole explicite
+n'est pas défendable.}
+
+\subsection{Validité}
+\aecrire{Section courte mais indispensable. Traiter : validité interne (les
+améliorations sont-elles attribuables à la chaîne ou à d'autres évolutions
+concomitantes ?), validité externe (généralisation à d'autres produits),
+fiabilité (les mesures sont-elles reproductibles ?).}
+
+% ===========================================================================
+\section{Reproductibilité de l'environnement}
+\label{sec:eval-reproductibilite}
+
+\aecrire{Protocole proposé : construire une même révision du code à deux dates
+distinctes et sur deux machines distinctes avec la même étiquette d'image,
+puis comparer. Indiquer précisément ce qui est comparé : versions des outils,
+réussite de la construction, et si possible empreinte des artefacts produits.
+Discuter les écarts constatés et leurs causes (horodatages, chemins de
+construction, ordre de liaison).}
+
+\chiffre{Résultat de la comparaison des empreintes d'artefacts.}
+
+% ===========================================================================
+\section{Performance de la chaîne}
+\label{sec:eval-performance}
+
+\subsection{Durées de construction}
+\begin{table}[H]
+\centering
+\caption{Durées de construction observées}
+\label{tab:eval-durees}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Chaîne} & \textbf{Minimum} & \textbf{Médiane} & \textbf{Maximum} \\
+\midrule
+Applicative (matrice complète) & & & \\
+Distribution, variante dev & & & \\
+Distribution, variante prod & & & \\
+Publication de l'image de compilation & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Effet du cache d'état partagé}
+\aecrire{Comparer construction à froid et à chaud. C'est un résultat
+quantitatif fort et facile à obtenir : ne pas le négliger. Présenter sous
+forme de tableau puis d'un graphique.}
+
+\begin{figure}[H]
+\centering
+\aecrire{Graphique : durée de construction avec et sans cache, par variante.}
+\caption{Incidence du cache d'état partagé sur la durée de construction}
+\label{fig:eval-cache}
+\end{figure}
+
+\subsection{Effet du parallélisme de la matrice}
+\aecrire{Comparer la durée cumulée des quatre configurations exécutées en
+séquence à la durée réelle observée en parallèle.}
+
+% ===========================================================================
+\section{Qualité et sécurité}
+\label{sec:eval-qualite}
+
+\subsection{Couverture de code}
+\begin{figure}[H]
+\centering
+\aecrire{Graphique d'évolution de la couverture (lignes, fonctions, branches)
+sur la période d'observation.}
+\caption{Évolution de la couverture de code}
+\label{fig:eval-couverture}
+\end{figure}
+
+\subsection{Défauts détectés par l'analyse statique}
+\aecrire{Présenter la répartition initiale des défauts par priorité, puis leur
+évolution. Distinguer les défauts préexistants des défauts nouvellement
+introduits : c'est la distinction qui donne du sens à la mesure.}
+
+\chiffre{Nombre de défauts de priorité 1 et 2 au démarrage et en fin de
+période.}
+
+\subsection{Vulnérabilités des composants tiers}
+\aecrire{Présenter le nombre de composants identifiés et la répartition des
+vulnérabilités par sévérité. Souligner l'apport principal : avant la mise en
+place, l'inventaire des composants n'existait pas de manière automatisée.}
+
+\subsection{Détection des régressions}
+\aecrire{Si des cas concrets de régressions détectées par la chaîne avant
+intégration sont documentés, les citer. Un exemple réel vaut mieux qu'un
+paragraphe général.}
+
+% ===========================================================================
+\section{Indicateurs de performance de livraison}
+\label{sec:eval-dora}
+
+\begin{table}[H]
+\centering
+\caption{Indicateurs de performance adaptés au contexte embarqué}
+\label{tab:eval-dora}
+\begin{tabularx}{\textwidth}{@{}l X c c@{}}
+\toprule
+\textbf{Indicateur} & \textbf{Adaptation retenue} & \textbf{Avant} & \textbf{Après} \\
+\midrule
+Fréquence d'intégration & Nombre d'intégrations validées par semaine & & \\
+Délai de retour & Délai entre soumission et résultat complet & & \\
+Taux d'échec & Part des exécutions en échec imputables au code & & \\
+Délai de rétablissement & Temps de remise en état d'une chaîne cassée & & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\aecrire{Justifier chaque adaptation par rapport à la définition d'origine
+(section~\ref{sec:art-dora}). Si les valeurs « avant » sont estimées et non
+mesurées, l'indiquer dans le tableau et dans le texte.}
+
+% ===========================================================================
+\section{Coût et effort d'administration}
+\label{sec:eval-cout}
+
+\aecrire{Estimer : coût d'exécution de l'infrastructure, temps d'ingénierie
+économisé sur les tâches auparavant manuelles (analyse de composants avant
+jalon, préparation des environnements, collecte des rapports), et effort de
+maintenance de la chaîne elle-même. Ne pas dissimuler ce dernier poste : une
+chaîne d'intégration a un coût de possession.}
+
+% ===========================================================================
+\section{Retour des utilisateurs}
+\label{sec:eval-retour}
+
+\aecrire{Si un recueil auprès des développeurs est possible dans les délais,
+même informel, l'intégrer : quelques verbatims bien choisis renforcent
+considérablement une étude de cas. Préciser le nombre de personnes
+interrogées et la méthode.}
+
+% ===========================================================================
+\section{Discussion}
+\label{sec:eval-discussion}
+
+\subsection{Réponses aux questions d'évaluation}
+\aecrire{Reprendre QE1 à QE4 et y répondre explicitement, en s'appuyant sur
+les mesures présentées. Une réponse nuancée et argumentée est attendue.}
+
+\subsection{Limites}
+\aecrire{Recenser honnêtement : absence de tests sur cible matérielle réelle
+dans la chaîne, politique de blocage non appliquée sur l'analyse statique,
+exécution en superutilisateur, absence de mesure de référence antérieure pour
+certains indicateurs, période d'observation courte. Une section de limites
+solide est un marqueur de maturité, elle ne dessert pas la note.}
+
+\subsection{Menaces à la validité}
+\aecrire{Distinguer des limites : il s'agit ici de ce qui pourrait invalider
+les conclusions. Étude de cas unique, mesures partiellement déclaratives,
+effet d'apprentissage de l'équipe concomitant.}

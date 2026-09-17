@@ -1,0 +1,462 @@
+% ============================================================================
+%  Chapitre 5 — Mise en œuvre
+%  Cible : 20 à 25 pages. C'est le cœur du mémoire. À rédiger J7-J9.
+%
+%  MÉTHODE pour chaque section : (1) objectif et exigence couverte,
+%  (2) conception retenue, (3) extrait de code commenté, (4) difficulté
+%  rencontrée et solution. Le point (4) est ce qui distingue un mémoire
+%  d'ingénieur d'une documentation technique : ne pas le sauter.
+% ============================================================================
+\chapter{Mise en œuvre}
+\label{chap:mise-en-oeuvre}
+
+\section{Vue d'ensemble}
+\label{sec:impl-vue-ensemble}
+
+\aecrire{Une page. Rappeler les trois chaînes et présenter le tableau
+récapitulatif ci-dessous, puis annoncer le plan du chapitre.}
+
+\begin{table}[H]
+\centering
+\caption{Chaînes d'intégration mises en œuvre}
+\label{tab:impl-workflows}
+\begin{tabularx}{\textwidth}{@{}l X >{\raggedright\arraybackslash}p{3.6cm}@{}}
+\toprule
+\textbf{Chaîne} & \textbf{Objet} & \textbf{Déclenchement} \\
+\midrule
+\texttt{pm77xx-app} & Construction, analyse et test de la couche applicative &
+  Planifié (jours ouvrés), manuel, ou appelé \\
+\texttt{pm77xx-yocto} & Construction des variantes d'image et du \gls{sdk} &
+  Planifié (jours ouvrés) ou manuel \\
+\texttt{publish-image} & Construction, validation et publication de l'image de
+  compilation & Manuel \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\chiffre{Durée moyenne d'exécution de chacune des trois chaînes, à ajouter en
+colonne supplémentaire une fois les mesures collectées (chapitre~\ref{chap:evaluation}).}
+
+% ===========================================================================
+\section{Environnement de compilation conteneurisé}
+\label{sec:impl-conteneur}
+
+\emph{Exigences couvertes : EF1, ENF1. Sous-question : QR1.}
+
+\subsection{Objectif}
+\aecrire{Rappeler la limite L1 : divergence des environnements entre postes
+de développement et entre postes et intégration. Objectif : une image de
+conteneur unique, versionnée, servant à la fois au développeur et à la chaîne
+d'intégration.}
+
+\subsection{Composition de l'image}
+
+L'image est construite à partir d'une base Ubuntu~24.04 \gls{lts} durcie et
+maintenue en interne. L'ensemble des outils y est installé à version épinglée,
+de manière à ce que deux constructions séparées dans le temps utilisent une
+chaîne d'outils strictement identique.
+
+\begin{table}[H]
+\centering
+\caption{Principaux composants de l'image de compilation et versions épinglées}
+\label{tab:impl-image-versions}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Composant} & \textbf{Rôle} & \textbf{Version} \\
+\midrule
+GCC / G++ & Compilation C et C++ & 13.3.0 \\
+CMake & Système de construction applicatif & 3.28.3 \\
+Meson / Ninja & Construction de la brique de sécurité & 1.3.2 / 1.11.1 \\
+Coverity Analysis & Analyse statique & 2024.12.0 \\
+GoogleTest & Cadre de test unitaire & 1.12.1 \\
+CMocka & Simulation de dépendances en test & 1.1.7 \\
+gcovr & Mesure de couverture de code & 7.0 \\
+Doxygen / Graphviz & Génération de documentation & 1.9.8 / 2.42.2 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\aecrire{Compléter avec les bibliothèques applicatives (cJSON, libsystemd,
+libwebsockets, libevent, libmodbus, SQLite, RapidJSON) : un tableau ou une
+énumération courte, pas les deux.}
+
+\subsection{Points de conception notables}
+
+\aecrire{Développer les points suivants, qui montrent une réflexion
+d'ingénierie et non une simple recopie de commandes.}
+
+\begin{description}[style=nextline,leftmargin=0.8cm]
+  \item[Construction multi-étapes] Les composants compilés depuis les sources
+    sont produits dans une étape intermédiaire puis copiés dans l'image
+    finale, ce qui évite d'y conserver les sources et les outils de
+    construction.
+  \item[Accès aux dépôts privés pendant la construction] La récupération de la
+    brique de cybersécurité nécessite une authentification. Un montage de
+    secret temporaire est utilisé, de sorte que la clé n'apparaisse dans
+    aucune couche de l'image finale. \aecrire{Développer : c'est un point de
+    sécurité concret, le jury peut interroger dessus.}
+  \item[Utilisateur non privilégié] L'image définit un utilisateur dédié
+    plutôt que d'exécuter en tant que superutilisateur.
+    \aecrire{Signaler honnêtement l'écart : l'exécution en intégration se fait
+    malgré tout en superutilisateur pour cause de compatibilité avec le
+    service d'exécuteurs. Expliquer pourquoi, et le reporter en perspectives.}
+\end{description}
+
+\subsection{Cycle de vie de l'image}
+\aecrire{Décrire la chaîne \texttt{publish-image} : construction, analyse du
+Dockerfile par un analyseur dédié, vérification de la présence et des versions
+des outils, validation par exécution de la chaîne applicative complète contre
+l'image candidate, puis publication sous une étiquette définitive. Insister
+sur le fait qu'une image n'est publiée qu'après avoir prouvé qu'elle
+construit le produit : c'est le point de conception intéressant.}
+
+\begin{figure}[H]
+\centering
+\aecrire{Figure : cycle de vie de l'image de compilation (construction,
+validation, publication).}
+\caption{Cycle de validation et de publication de l'image de compilation}
+\label{fig:impl-cycle-image}
+\end{figure}
+
+% ===========================================================================
+\section{Chaîne de construction applicative}
+\label{sec:impl-pipeline-app}
+
+\emph{Exigences couvertes : EF2, EF6, EF7, ENF5. Sous-question : QR1.}
+
+\subsection{Déclencheurs et paramètres}
+\aecrire{Trois modes de déclenchement : planifié en jours ouvrés, manuel avec
+paramètres, et appelable depuis une autre chaîne. Expliquer pourquoi le mode
+appelable est indispensable à la validation de l'image de compilation
+(section précédente).}
+
+\begin{table}[H]
+\centering
+\caption{Paramètres d'entrée de la chaîne applicative}
+\label{tab:impl-parametres-app}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Paramètre} & \textbf{Rôle} & \textbf{Défaut} \\
+\midrule
+\texttt{app\_repo\_branch} & Branche du dépôt applicatif & \texttt{develop} \\
+\texttt{test\_repo\_branch} & Branche du dépôt de tests & \texttt{main} \\
+\texttt{builder\_img\_tag} & Étiquette de l'image de compilation & épinglée \\
+\texttt{ci\_repo\_branch} & Branche du dépôt d'intégration & \texttt{main} \\
+\texttt{run\_cov\_analysis} & Activation de l'analyse statique & \texttt{true} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Matrice de construction}
+\label{ssec:impl-matrice}
+
+La construction est déclinée selon deux axes : le type de construction
+(\texttt{DEBUG}, \texttt{RELEASE}) et l'architecture cible (\texttt{amd64} pour
+la compilation native de validation, \texttt{aarch64} pour la compilation
+croisée destinée au produit), soit quatre combinaisons exécutées en parallèle.
+
+\aecrire{Justifier pourquoi certaines étapes ne sont exécutées que sur une
+branche de la matrice : les tests unitaires et d'intégration s'exécutent sur
+\texttt{DEBUG}/\texttt{amd64} (instrumentation de couverture et exécution
+native possible), l'analyse de composition porte sur
+\texttt{RELEASE}/\texttt{aarch64} (artefact effectivement livré). Cette
+répartition est un arbitrage coût/couverture : l'expliciter.}
+
+\begin{table}[H]
+\centering
+\caption{Répartition des activités sur la matrice de construction}
+\label{tab:impl-matrice-activites}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Activité} & \textbf{DEBUG} & \textbf{DEBUG} & \textbf{RELEASE} & \textbf{RELEASE} \\
+ & \textbf{amd64} & \textbf{aarch64} & \textbf{amd64} & \textbf{aarch64} \\
+\midrule
+Compilation            & \checkmark & \checkmark & \checkmark & \checkmark \\
+Analyse statique       & \checkmark & \checkmark & --- & --- \\
+Tests unitaires        & \checkmark & --- & --- & --- \\
+Couverture de code     & \checkmark & --- & --- & --- \\
+Tests d'intégration    & \checkmark & --- & --- & --- \\
+Analyse de composition & --- & --- & --- & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Séquence d'exécution}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{pm77xx-app-workflow}
+\caption{Diagramme d'activité de la chaîne de construction applicative}
+\label{fig:impl-activite-app}
+\end{figure}
+
+\aecrire{Commenter la figure en suivant le flux d'exécution. Une figure non
+commentée dans le texte est considérée comme absente.}
+
+\subsection{Gestion des dépôts multiples et des sous-modules}
+\aecrire{Difficulté concrète à développer : le code applicatif est réparti sur
+un dépôt principal et de nombreux sous-modules privés. Expliquer le mécanisme
+d'authentification retenu par clé de service et son incidence sur la durée de
+récupération des sources.}
+
+\begin{lstlisting}[language=yaml,caption={Extrait : récupération des sources
+  et exécution dans le conteneur de compilation},label={lst:impl-checkout}]
+# TODO : coller ici l'extrait réel du workflow, réduit aux lignes utiles.
+# Règle : un listing ne doit jamais dépasser une demi-page. Au-delà,
+# le mettre en annexe A et n'en citer que la référence.
+\end{lstlisting}
+
+\subsection{Difficultés rencontrées}
+\aecrire{Les documenter explicitement. Pistes déjà identifiées dans la
+documentation existante : nettoyage des services en fin d'exécution supposant
+des répertoires absents sur un exécuteur neuf, gestion du délai d'attente au
+démarrage des services, exclusion des tests destinés au cœur temps réel qui
+ne peuvent pas s'exécuter sur l'hôte.}
+
+% ===========================================================================
+\section{Chaîne de construction de la distribution embarquée}
+\label{sec:impl-pipeline-yocto}
+
+\emph{Exigence couverte : EF3. Sous-question : QR1.}
+
+\subsection{Organisation de la configuration}
+La configuration de construction est décrite de manière déclarative avec kas et
+structurée en trois niveaux : la carte cible, le projet d'image, et les options
+de construction.
+
+\aecrire{Décrire les niveaux : fichier de carte définissant la machine
+\texttt{\Carte}, fichiers de projet définissant la distribution et la cible
+d'image, fichiers d'option pour la génération du \gls{sdk} et les réglages
+d'intégration.}
+
+\subsection{Variantes d'image}
+\begin{table}[H]
+\centering
+\caption{Variantes d'image produites}
+\label{tab:impl-variantes}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Variante} & \textbf{Usage} \\
+\midrule
+\texttt{dev} & Image de développement, outils de débogage inclus \\
+\texttt{hwtest} & Validation matérielle en production \\
+\texttt{netboot} & Démarrage par le réseau (initramfs) \\
+\texttt{rescue} & Image de secours (initramfs) \\
+\texttt{prod} & Image de production, noyau optimisé pour le temps de démarrage \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Maîtrise du temps de construction}
+\label{ssec:impl-cache}
+
+\aecrire{Section à fort contenu technique, à soigner. Expliquer le mécanisme
+du cache d'état partagé et du cache de téléchargement, leur mutualisation
+entre exécutions, et le réglage du parallélisme. Fournir la mesure comparative
+avec et sans cache : c'est l'un des résultats les plus parlants du
+chapitre~6.}
+
+\chiffre{Durée de construction à froid et à chaud, par variante d'image.}
+
+\subsection{Génération et publication du kit de développement}
+\aecrire{Expliquer que le \gls{sdk} généré pour la variante de développement
+est publié dans le référentiel d'artefacts, ce qui permet aux développeurs
+applicatifs de compiler pour la cible sans reconstruire la distribution.
+C'est un apport concret à l'équipe : le mettre en valeur.}
+
+\subsection{Construction des paquets du banc de test}
+\aecrire{Décrire la construction séparée des paquets destinés à
+l'orchestrateur du banc de test matériel, sur une base distincte de la cible
+embarquée.}
+
+% ===========================================================================
+\section{Qualité logicielle : tests et couverture}
+\label{sec:impl-qualite}
+
+\emph{Exigences couvertes : EF6, EF7, EF9.}
+
+\subsection{Tests unitaires}
+\aecrire{Décrire l'exécution des tests unitaires via le lanceur de CMake,
+l'exclusion des tests destinés au cœur temps réel, et l'instrumentation de
+couverture activée en construction de débogage.}
+
+\subsection{Tests d'intégration}
+Les tests d'intégration sont écrits avec Robot Framework et organisés en suites
+correspondant aux domaines fonctionnels : gestion administrative et système,
+gestion des équipements, gestion des défauts, notifications, et interfaces nord
+Modbus, BACnet et \gls{edm}.
+
+\aecrire{Décrire la séquence : démarrage des services applicatifs dans le
+conteneur, attente de disponibilité, exécution des suites, arrêt des services,
+collecte des rapports. Souligner la difficulté principale : exécuter un
+ensemble de services système dans un conteneur sans gestionnaire de services
+complet.}
+
+\subsection{Restitution des résultats}
+\aecrire{Décrire la génération automatique d'une synthèse en Markdown injectée
+dans le rapport d'exécution : indicateur visuel de taux de réussite, tableau
+des compteurs, liste des tests en échec. Même principe pour la couverture, avec
+des seuils configurables. Argument à défendre : un résultat qui n'est pas lu
+n'a aucune valeur ; la restitution fait partie de la conception, pas de la
+cosmétique.}
+
+\begin{figure}[H]
+\centering
+\aecrire{Capture d'écran de la synthèse d'exécution. Sources disponibles :
+\texttt{ci/docs/images/UTReports.png}, \texttt{ci/docs/images/buildArtifacts.png}.}
+\caption{Synthèse automatique des résultats de test publiée à chaque exécution}
+\label{fig:impl-synthese-tests}
+\end{figure}
+
+% ===========================================================================
+\section{Sécurité : analyse statique et analyse de composition}
+\label{sec:impl-securite}
+
+\emph{Exigences couvertes : EF4, EF5. Sous-question : QR2.}
+
+\subsection{Analyse statique}
+L'analyse statique est réalisée en trois phases distinctes : la capture, qui
+instrumente la construction et enregistre les unités de compilation ; l'analyse
+proprement dite, qui applique les vérificateurs ; et la remontée des résultats
+vers le serveur d'analyse.
+
+\aecrire{Justifier le découpage en trois phases et son intérêt en intégration
+continue. Détailler la configuration : activation de l'ensemble des
+vérificateurs, y compris les vérificateurs de sécurité de la famille C,
+résolution des appels virtuels et des pointeurs de fonction, normalisation des
+chemins pour que les défauts restent corrélables d'une exécution à l'autre
+malgré des répertoires de travail éphémères. Ce dernier point est une
+difficulté réelle propre aux exécuteurs jetables : la mettre en avant.}
+
+\begin{lstlisting}[language=yaml,caption={Extrait de la configuration
+  d'analyse statique},label={lst:impl-cov-config}]
+# TODO : coller l'extrait réel (phases capture / analyze / commit).
+\end{lstlisting}
+
+\subsubsection{Restitution ciblée des défauts}
+\aecrire{Décrire le filtrage par vues de priorité 1 et 2, restreintes au code
+écrit par l'équipe à l'exclusion des composants tiers. Expliquer le client
+d'extraction développé : interrogation de l'interface de programmation du
+serveur, attente de fin d'analyse, mise en forme des résultats en rapport
+consultable. Justifier le développement de cet outil plutôt que l'usage de
+l'interface web : l'objectif est que le développeur voie les défauts sans
+quitter son rapport d'exécution.}
+
+\subsubsection{Politique de blocage}
+\aecrire{Point de discussion à traiter honnêtement. Situation actuelle : la
+détection de défauts n'interrompt pas l'exécution, seule une défaillance de
+construction ou de connexion au serveur le fait. Justifier ce choix par la
+dette initiale, puis proposer la trajectoire cible : blocage sur les défauts
+nouvellement introduits uniquement. Cette lucidité sera mieux notée qu'une
+présentation idéalisée.}
+
+\subsection{Analyse de composition des artefacts}
+\aecrire{Décrire la soumission de l'artefact de production à l'analyseur de
+composants binaires, l'attente du résultat, la récupération du rapport et
+l'extraction des indicateurs : nombre de composants identifiés, nombre de
+composants porteurs de vulnérabilités, répartition des vulnérabilités par
+sévérité. Relier explicitement aux obligations de nomenclature logicielle
+présentées en section~\ref{sec:art-supply-chain}.}
+
+\begin{table}[H]
+\centering
+\caption{Indicateurs extraits de l'analyse de composition}
+\label{tab:impl-bdba-metriques}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Indicateur} & \textbf{Définition} \\
+\midrule
+Composants identifiés & Nombre total de composants tiers détectés dans l'artefact \\
+Composants vulnérables & Composants pour lesquels au moins une vulnérabilité est connue \\
+Vulnérabilités par sévérité & Répartition critique / élevée / moyenne / faible \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Gestion des secrets}
+\aecrire{Recenser les secrets nécessaires (clé de service Git, jetons
+d'authentification aux serveurs d'analyse, jeton du référentiel d'artefacts) et
+décrire leur mode d'injection ainsi que les précautions prises pour éviter
+toute divulgation dans les journaux d'exécution. Couvre ENF4.}
+
+% ===========================================================================
+\section{Infrastructure d'exécution}
+\label{sec:impl-runners}
+
+\emph{Exigence couverte : ENF3. Sous-question : QR4.}
+
+\subsection{Modèle d'exécuteurs éphémères}
+\aecrire{Décrire le service mutualisé d'exécuteurs : allocation d'une machine
+neuve par exécution, destruction en fin d'exécution. Détailler les
+conséquences de conception : aucun cache local persistant, durée de
+récupération des sources et de l'image à chaque exécution, chemins de travail
+variables. Relier au problème de normalisation des chemins évoqué en
+section~\ref{sec:impl-securite}.}
+
+\subsection{Description de l'infrastructure en code}
+\aecrire{Décrire les éléments décrits en Terraform : réservation d'adresses
+réseau fixes pour les besoins de filtrage vers les serveurs internes, rôles
+d'accès au fournisseur cloud, politiques d'autorisation par dépôt. Décrire le
+processus de modification : proposition de changement, validation automatique
+des politiques, application après fusion.}
+
+\begin{lstlisting}[language=hcl,caption={Extrait de la description
+  d'infrastructure},label={lst:impl-terraform}]
+# TODO : coller un extrait représentatif, anonymisé.
+\end{lstlisting}
+
+\subsection{Considérations de sécurité}
+\aecrire{Traiter : isolation entre exécutions, portée minimale des jetons,
+absence de persistance, risque lié à l'exécution en superutilisateur signalé
+en section~\ref{sec:impl-conteneur}.}
+
+% ===========================================================================
+\section{Observabilité de la chaîne}
+\label{sec:impl-observabilite}
+
+\emph{Exigences couvertes : EF9, ENF6. Sous-question : QR3.}
+
+\subsection{Motivation}
+\aecrire{Une synthèse par exécution ne permet pas de percevoir une tendance.
+L'objectif est de conserver l'historique des indicateurs pour piloter
+l'évolution de la qualité, et non seulement constater l'état d'une exécution.}
+
+\subsection{Chaîne de collecte}
+\begin{figure}[H]
+\centering
+\aecrire{Figure : chaîne exécution $\rightarrow$ exportateur $\rightarrow$
+base de séries temporelles $\rightarrow$ tableaux de bord.}
+\caption{Chaîne de collecte et de restitution des indicateurs}
+\label{fig:impl-observabilite}
+\end{figure}
+
+\aecrire{Décrire la production des indicateurs au format d'import de la base
+de séries temporelles, leur envoi, et leur restitution sous forme de tableaux
+de bord. Préciser le déploiement : conteneurs orchestrés, chart de
+déploiement, gestion chiffrée des secrets, exposition avec certificat
+d'entreprise.}
+
+\subsection{Indicateurs retenus}
+\begin{table}[H]
+\centering
+\caption{Indicateurs collectés et historisés}
+\label{tab:impl-indicateurs}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Famille} & \textbf{Indicateur} & \textbf{Source} \\
+\midrule
+Construction & Durée, issue, fréquence & Plateforme d'orchestration \\
+Test & Tests exécutés, réussis, en échec & Rapports de test \\
+Couverture & Lignes, fonctions, branches & Outil de couverture \\
+Analyse statique & Défauts de priorité 1 et 2 & Serveur d'analyse \\
+Composition & Composants et vulnérabilités par sévérité & Analyseur binaire \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Synthèse du chapitre}
+\label{sec:impl-synthese}
+
+\aecrire{Reprendre le tableau des exigences du chapitre~4 et indiquer pour
+chacune la section qui la couvre et son état : couverte, partiellement
+couverte, non couverte. Assumer les exigences non couvertes, elles alimentent
+les perspectives.}

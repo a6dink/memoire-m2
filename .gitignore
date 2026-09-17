@@ -1,0 +1,37 @@
+# Fichiers intermédiaires LaTeX
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.tdo
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.ist
+
+# PDF généré (décommenter si l'on souhaite le versionner)
+main.pdf
+
+# Figures générées depuis les sources PlantUML
+figures/*.pdf
+figures/*.svg
+!figures/.gitkeep
+
+# Données de mesure brutes (peuvent contenir des informations internes)
+mesures/*.json
+mesures/*.csv
+
+# Système
+.DS_Store

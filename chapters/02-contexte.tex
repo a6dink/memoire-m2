@@ -1,0 +1,142 @@
+% ============================================================================
+%  Chapitre 2 — Contexte industriel et analyse de l'existant
+%  Cible : 8 à 10 pages. À rédiger J2-J3.
+% ============================================================================
+\chapter{Contexte industriel et analyse de l'existant}
+\label{chap:contexte}
+
+\section{L'entreprise et l'entité d'accueil}
+\label{sec:ctx-entreprise}
+
+\aecrire{1,5 page maximum. Ne pas faire une plaquette commerciale : le jury
+attend le \emph{contexte organisationnel du projet}, pas le chiffre
+d'affaires. Points à couvrir : activité de la division, positionnement du
+produit dans la gamme, composition et localisation des équipes,
+articulation entre équipe de développement firmware et équipe DevOps,
+rattachement de l'auteur.}
+
+\section{Le produit et son logiciel embarqué}
+\label{sec:ctx-produit}
+
+\subsection{Fonction du produit}
+\aecrire{Rôle d'une centrale de mesure / compteur d'énergie communicant :
+acquisition des grandeurs électriques, journalisation, exposition des données
+aux systèmes de supervision.}
+
+\subsection{Architecture matérielle}
+La cible matérielle repose sur un \gls{soc} Texas~Instruments AM642 intégré sur
+un \gls{som}, associé à une carte porteuse. La configuration de construction
+désigne cette cible par la machine Yocto \texttt{\Carte}.
+
+\aecrire{Décrire : cœurs Cortex-A53 (Linux) et cœurs Cortex-R5F (temps réel),
+mémoire, stockage eMMC, présence d'un \gls{tpm}. Insister uniquement sur ce
+qui \emph{contraint la chaîne de construction} : compilation croisée
+aarch64, firmware R5F à générer avec une chaîne d'outils propriétaire,
+signature et chaîne de confiance au démarrage.}
+
+\subsection{Pile logicielle}
+\label{ssec:ctx-pile-logicielle}
+
+La pile logicielle se décompose en trois couches, chacune associée à un rythme
+de construction et à des outils différents :
+
+\begin{table}[H]
+\centering
+\caption{Décomposition de la pile logicielle embarquée}
+\label{tab:ctx-pile}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Couche} & \textbf{Contenu} & \textbf{Construction} \\
+\midrule
+Distribution & Noyau Linux, \gls{bsp}, paquets système, image disque &
+  Yocto / kas \\
+Sécurité & Brique de cybersécurité transverse (\gls{csb}) & Meson \\
+Application & Services métier \Firmware{} (gestion d'équipement, de défauts,
+  interfaces nord) & CMake \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\aecrire{Décrire brièvement les services applicatifs : gestion
+administrative et système, gestion des équipements, gestion des défauts,
+notifications, et les interfaces nord Modbus, BACnet et \gls{edm}. Mentionner
+l'organisation en dépôts multiples avec sous-modules Git, car c'est une
+contrainte forte pour la chaîne d'intégration.}
+
+\section{Organisation des dépôts}
+\label{sec:ctx-depots}
+
+\aecrire{Expliquer la séparation en dépôts : configuration d'image,
+couches BSP et distribution, application, tests d'automatisation, images de
+construction, configuration des exécuteurs, supervision. Justifier pourquoi
+cette séparation complique l'intégration (versions croisées, cohérence des
+références, secrets d'accès inter-dépôts). Un tableau des dépôts est plus
+lisible qu'un paragraphe.}
+
+\begin{table}[H]
+\centering
+\caption{Dépôts intervenant dans la chaîne de construction}
+\label{tab:ctx-depots}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4cm} X l@{}}
+\toprule
+\textbf{Dépôt} & \textbf{Rôle} & \textbf{Branche} \\
+\midrule
+\texttt{ci} & Workflows et scripts d'intégration & \texttt{main} \\
+\texttt{docker-image} & Image de l'environnement de compilation & \texttt{main} \\
+\texttt{evo-image-config} & Configuration kas / Yocto de la distribution & \texttt{scarthgap} \\
+\texttt{sdp} & Code applicatif et sous-modules & \texttt{develop} \\
+\texttt{automation-tests} & Suites de tests d'intégration & \texttt{main} \\
+\texttt{runner-config} & Infrastructure des exécuteurs & \texttt{Prod} \\
+\texttt{monitoring-ci} & Exportateurs de métriques & \texttt{main} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Analyse de l'existant}
+\label{sec:ctx-existant}
+
+\aecrire{C'est LA section qui justifie tout le mémoire. Sans un « avant »
+décrit honnêtement, le chapitre~6 n'a pas de point de comparaison. Décrire
+la situation initiale sans la caricaturer.}
+
+\subsection{Pratiques de construction initiales}
+\aecrire{Construction sur poste de développeur, environnements divergents
+d'un poste à l'autre, dépendances installées manuellement, absence de
+version de référence de la chaîne d'outils.}
+
+\subsection{Pratiques de test et de qualité initiales}
+\aecrire{Tests unitaires exécutés à la demande, absence de mesure de
+couverture historisée, analyse statique lancée ponctuellement en fin de cycle,
+analyse de composants réalisée manuellement avant les jalons.}
+
+\subsection{Limites identifiées}
+\label{ssec:ctx-limites}
+
+\aecrire{Formuler chaque limite de façon à ce qu'elle soit reprise telle
+quelle comme exigence au chapitre~4 et comme critère d'évaluation au
+chapitre~6. Une limite = une exigence = une mesure. Conserver cette
+traçabilité, le jury la cherchera.}
+
+\begin{table}[H]
+\centering
+\caption{Limites de la situation initiale et exigences induites}
+\label{tab:ctx-limites}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Réf.} & \textbf{Limite constatée} & \textbf{Exigence} \\
+\midrule
+L1 & Environnements de construction divergents entre développeurs & EF1 \\
+L2 & Détection tardive des régressions & EF2 \\
+L3 & Analyse statique non systématique & EF4 \\
+L4 & Inventaire des composants tiers non tenu à jour & EF5 \\
+L5 & Absence de mesure historisée de la qualité & EF6 \\
+L6 & Administration manuelle des machines d'exécution & ENF3 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Synthèse}
+\label{sec:ctx-synthese}
+
+\aecrire{Un paragraphe de transition vers le chapitre~3 : avant de concevoir,
+examiner ce que la littérature et l'industrie proposent pour ces problèmes.}
