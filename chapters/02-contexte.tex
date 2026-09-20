@@ -2,141 +2,196 @@
 %  Chapitre 2 — Contexte industriel et analyse de l'existant
 %  Cible : 8 à 10 pages. À rédiger J2-J3.
 % ============================================================================
-\chapter{Contexte industriel et analyse de l'existant}
+\chapter{Contexte industriel}
 \label{chap:contexte}
 
-\section{L'entreprise et l'entité d'accueil}
-\label{sec:ctx-entreprise}
+\section{\Entreprise}
+\label{sec:ctx-schneider}
 
-\aecrire{1,5 page maximum. Ne pas faire une plaquette commerciale : le jury
-attend le \emph{contexte organisationnel du projet}, pas le chiffre
-d'affaires. Points à couvrir : activité de la division, positionnement du
-produit dans la gamme, composition et localisation des équipes,
-articulation entre équipe de développement firmware et équipe DevOps,
-rattachement de l'auteur.}
+\Entreprise{} est un groupe industriel français spécialisé dans la gestion de
+l'énergie et l'automatisation. Le groupe conçoit des équipements et des
+logiciels permettant de produire, distribuer, mesurer et piloter l'énergie
+électrique, pour des clients allant du bâtiment tertiaire et résidentiel à
+l'industrie lourde, en passant par les infrastructures critiques et les
+data centers. Il est implanté dans de nombreux pays et organise son
+activité en plusieurs grandes divisions, correspondant chacune à un segment
+de marché (bâtiment, industrie, infrastructures, énergie).
 
-\section{Le produit et son logiciel embarqué}
-\label{sec:ctx-produit}
+Le groupe réalise, en 2024, un chiffre d'affaires de 38,2~milliards d'euros et
+emploie plus de 160~000 collaborateurs dans plus de 100 pays. Il consacre
+6~\% de son chiffre d'affaires à la recherche et au développement et se
+classe 5\textsuperscript{e} capitalisation du CAC~40. Son activité se structure autour de
+deux cœurs de métier complémentaires, la gestion de l'énergie et les
+automatismes industriels, couvrant l'ensemble de la chaîne de valeur, de la
+source d'énergie jusqu'à la ligne de production. Ses marchés finaux se
+répartissent entre les bâtiments (30~\%), l'industrie (33~\%), les centres de
+données (24~\%) et les infrastructures (13~\%) (commandes 2024).
 
-\subsection{Fonction du produit}
-\aecrire{Rôle d'une centrale de mesure / compteur d'énergie communicant :
-acquisition des grandeurs électriques, journalisation, exposition des données
-aux systèmes de supervision.}
-
-\subsection{Architecture matérielle}
-La cible matérielle repose sur un \gls{soc} Texas~Instruments AM642 intégré sur
-un \gls{som}, associé à une carte porteuse. La configuration de construction
-désigne cette cible par la machine Yocto \texttt{\Carte}.
-
-\aecrire{Décrire : cœurs Cortex-A53 (Linux) et cœurs Cortex-R5F (temps réel),
-mémoire, stockage eMMC, présence d'un \gls{tpm}. Insister uniquement sur ce
-qui \emph{contraint la chaîne de construction} : compilation croisée
-aarch64, firmware R5F à générer avec une chaîne d'outils propriétaire,
-signature et chaîne de confiance au démarrage.}
-
-\subsection{Pile logicielle}
-\label{ssec:ctx-pile-logicielle}
-
-La pile logicielle se décompose en trois couches, chacune associée à un rythme
-de construction et à des outils différents :
-
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\caption{Décomposition de la pile logicielle embarquée}
-\label{tab:ctx-pile}
-\begin{tabularx}{\textwidth}{@{}l X l@{}}
-\toprule
-\textbf{Couche} & \textbf{Contenu} & \textbf{Construction} \\
-\midrule
-Distribution & Noyau Linux, \gls{bsp}, paquets système, image disque &
-  Yocto / kas \\
-Sécurité & Brique de cybersécurité transverse (\gls{csb}) & Meson \\
-Application & Services métier \Firmware{} (gestion d'équipement, de défauts,
-  interfaces nord) & CMake \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\includegraphics[width=0.9\textwidth]{image-2026-9-18_16-45-42.png}
+\caption{\Entreprise{} dans le monde — chiffres clés 2024}
+\label{fig:ctx-schneider-chiffres}
+\end{figure}
 
-\aecrire{Décrire brièvement les services applicatifs : gestion
-administrative et système, gestion des équipements, gestion des défauts,
-notifications, et les interfaces nord Modbus, BACnet et \gls{edm}. Mentionner
-l'organisation en dépôts multiples avec sous-modules Git, car c'est une
-contrainte forte pour la chaîne d'intégration.}
+L'organisation du groupe repose sur deux \emph{business units} correspondant à
+ces deux cœurs de métier (\emph{Energy Management} et \emph{Industrial
+Automation}), qui conçoivent les offres, produits et services. Les
+opérations, qui conseillent les clients et commercialisent ces offres, sont
+organisées en quatre régions : Europe, Amérique du Nord, Chine et
+International Operations. La fabrication et l'acheminement des produits sont
+assurés par une chaîne d'approvisionnement mondiale (\emph{Global Supply
+Chain}), forte d'environ 200 usines et 100 centres de distribution. Des
+fonctions globales — finance, marketing, Schneider Digital notamment —
+apportent leur support à l'ensemble de ces entités.
 
-\section{Organisation des dépôts}
-\label{sec:ctx-depots}
-
-\aecrire{Expliquer la séparation en dépôts : configuration d'image,
-couches BSP et distribution, application, tests d'automatisation, images de
-construction, configuration des exécuteurs, supervision. Justifier pourquoi
-cette séparation complique l'intégration (versions croisées, cohérence des
-références, secrets d'accès inter-dépôts). Un tableau des dépôts est plus
-lisible qu'un paragraphe.}
-
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\caption{Dépôts intervenant dans la chaîne de construction}
-\label{tab:ctx-depots}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4cm} X l@{}}
-\toprule
-\textbf{Dépôt} & \textbf{Rôle} & \textbf{Branche} \\
-\midrule
-\texttt{ci} & Workflows et scripts d'intégration & \texttt{main} \\
-\texttt{docker-image} & Image de l'environnement de compilation & \texttt{main} \\
-\texttt{evo-image-config} & Configuration kas / Yocto de la distribution & \texttt{scarthgap} \\
-\texttt{sdp} & Code applicatif et sous-modules & \texttt{develop} \\
-\texttt{automation-tests} & Suites de tests d'intégration & \texttt{main} \\
-\texttt{runner-config} & Infrastructure des exécuteurs & \texttt{Prod} \\
-\texttt{monitoring-ci} & Exportateurs de métriques & \texttt{main} \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\includegraphics[width=0.9\textwidth]{image-2026-9-18_16-51-6.png}
+\caption{Organisation du groupe \Entreprise{}}
+\label{fig:ctx-schneider-organisation}
+\end{figure}
 
-\section{Analyse de l'existant}
-\label{sec:ctx-existant}
+\aecrire{Nommer précisément ici la division et l'entité d'accueil (business
+unit, site, équipe) au sein desquelles le produit \emph{Power Meter} est
+développé, et préciser en une phrase le positionnement de ce produit dans la
+gamme de l'entité (type de client, gamme de puissance ou de fonctionnalités
+couverte).}
 
-\aecrire{C'est LA section qui justifie tout le mémoire. Sans un « avant »
-décrit honnêtement, le chapitre~6 n'a pas de point de comparaison. Décrire
-la situation initiale sans la caricaturer.}
 
-\subsection{Pratiques de construction initiales}
-\aecrire{Construction sur poste de développeur, environnements divergents
-d'un poste à l'autre, dépendances installées manuellement, absence de
-version de référence de la chaîne d'outils.}
+\section{Le projet Bluebird}
+\label{sec:ctx-bluebird}
 
-\subsection{Pratiques de test et de qualité initiales}
-\aecrire{Tests unitaires exécutés à la demande, absence de mesure de
-couverture historisée, analyse statique lancée ponctuellement en fin de cycle,
-analyse de composants réalisée manuellement avant les jalons.}
+\subsection{Présentation et objectifs}
+\label{ssec:ctx-bluebird-presentation}
 
-\subsection{Limites identifiées}
-\label{ssec:ctx-limites}
+Bluebird est le programme de renouvellement de la gamme de comptage
+d'énergie standalone de \Entreprise{}, porté par la division \emph{Digital
+Power} sous la marque PowerLogic. Il répond à un contexte réglementaire et
+énergétique porteur : la directive européenne sur la performance
+énergétique des bâtiments, volet du \emph{Green~Deal}, impose
+progressivement la mise en place de systèmes de gestion technique du
+bâtiment et le comptage continu des consommations, y compris
+pour des puissances de chauffage/climatisation de plus en plus faibles à
+mesure que les seuils réglementaires sont abaissés. Le programme vise à
+inventer une troisième génération de comptage : instrumenter chaque tableau
+électrique par conception et à coût maîtrisé, tout en conservant le
+leadership de \Entreprise{} sur le marché du comptage standalone.
 
-\aecrire{Formuler chaque limite de façon à ce qu'elle soit reprise telle
-quelle comme exigence au chapitre~4 et comme critère d'évaluation au
-chapitre~6. Une limite = une exigence = une mesure. Conserver cette
-traçabilité, le jury la cherchera.}
+Le programme est structuré en plusieurs vagues (\emph{waves}) successives.
+La vague~1 renouvelle l'offre historique (gamme PM5000) et introduit un
+véritable \emph{système} de comptage modulaire : des compteurs standalone
+(sous-vague~1.1, familles PM71/72/73) et, surtout, une nouvelle génération de
+centrales de mesure formant un serveur d'énergie modulaire (sous-vague~1.2,
+familles PM77/78/79), capable d'agréger plusieurs capteurs \emph{PowerTag}
+et de communiquer simultanément par plusieurs canaux filaires et sans fil
+(Ethernet Modbus/BACnet, Wi-Fi, Zigbee, Bluetooth). Les
+vagues suivantes étendent le concept aux capteurs de courant intelligents
+(vague~2) puis aux capteurs d'énergie auto-alimentés destinés à la
+rénovation de tableaux existants (vague~3).
 
-\begin{table}[H]
+\begin{figure}[H]
 \centering
-\caption{Limites de la situation initiale et exigences induites}
-\label{tab:ctx-limites}
-\begin{tabularx}{\textwidth}{@{}l X l@{}}
-\toprule
-\textbf{Réf.} & \textbf{Limite constatée} & \textbf{Exigence} \\
-\midrule
-L1 & Environnements de construction divergents entre développeurs & EF1 \\
-L2 & Détection tardive des régressions & EF2 \\
-L3 & Analyse statique non systématique & EF4 \\
-L4 & Inventaire des composants tiers non tenu à jour & EF5 \\
-L5 & Absence de mesure historisée de la qualité & EF6 \\
-L6 & Administration manuelle des machines d'exécution & ENF3 \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\includegraphics[width=0.5\textwidth]{Capture d'écran 2026-09-20 022049.png}
+\caption{Centrale de mesure PowerLogic \ProduitCourt{} (sous-vague~1.2)}
+\label{fig:ctx-pm77xx-photo}
+\end{figure}
+
+Sur le plan technique, le \ProduitCourt{} repose sur un \gls{soc}
+Texas~Instruments AM642 (cœurs Linux et temps réel) et embarque un firmware
+composé d'une distribution Linux (Yocto), d'une brique de cybersécurité
+transverse et des modules applicatifs MET et COM décrits
+ci-dessous.
+
+\subsection{Organisation des équipes}
+\label{ssec:ctx-squads}
+
+Le projet Bluebird est porté par plusieurs équipes pluridisciplinaires,
+organisées autour des grands blocs du produit présentés ci-dessus.
+
+\subsubsection{Management}
+
+Le pilotage du programme Bluebird est assuré par une équipe Management
+distincte des équipes de développement : un \emph{Scrum Master} anime le
+cadre agile et la synchronisation des équipes HW et SW, des
+\emph{Business Developers} portent la relation avec les marchés et les
+clients cibles, et un \gls{otl} ainsi qu'un \gls{omo} pilotent
+respectivement la coordination transverse de l'offre et son positionnement
+marketing.
+
+\subsubsection{Hardware (HW)}
+
+L'équipe \emph{Hardware} (HW) conçoit et qualifie la partie matérielle du
+\ProduitCourt{} : carte porteuse, choix et intégration du \gls{soc}
+Texas~Instruments AM642, qualification électrique et environnementale. Elle
+fournit à l'équipe logicielle les spécifications matérielles nécessaires à la
+compilation croisée et à la génération du firmware temps réel.
+
+\subsubsection{Software (SW)}
+
+Le firmware applicatif du \ProduitCourt{} est développé par deux équipes
+distinctes, correspondant aux deux modules fonctionnels du produit.
+
+\paragraph{Équipe MET.}
+L'équipe \gls{met} développe le module de mesure, premier à être réalisé car
+il constitue le socle métier du produit : il assure l'acquisition, le calcul
+et la journalisation des grandeurs électriques mesurées. Sans acquisition ni
+calcul fiable de ces grandeurs, aucune donnée ne peut être exposée.
+
+\paragraph{Équipe COM.}
+L'équipe \gls{com} développe le module de communication, en s'appuyant sur les
+données produites par le \gls{met} : il expose ces grandeurs et les rend
+accessibles aux systèmes tiers, à travers les interfaces Modbus,
+BACnet, Ethernet et une API REST. C'est au sein de cette équipe que s'est
+déroulée ma mission, et c'est l'industrialisation de la chaîne de
+construction et de livraison de ce module qui constitue le périmètre de ce
+mémoire.
+
+\section{Mon rôle}
+\label{sec:ctx-role}
+
+\subsection{Missions et périmètre}
+\label{ssec:ctx-role-missions}
+
+J'ai rejoint l'équipe \gls{com} en tant que stagiaire DevSecOps, sur le
+périmètre de la chaîne d'intégration et de livraison continues du module de
+communication. Mon rôle ne portait donc pas sur le développement fonctionnel
+du firmware lui-même, mais sur l'outillage qui permet de le construire, de le
+vérifier et de le livrer de manière automatisée et reproductible.
+
+Cinq missions principales m'ont été confiées :
+
+\begin{itemize}[nosep]
+  \item la conteneurisation de l'environnement de compilation applicatif,
+        afin que développeurs et chaîne d'intégration travaillent sur une
+        base identique ;
+  \item la consolidation de deux chaînes d'intégration distinctes et
+        complémentaires, l'une pour la couche applicative, l'autre pour la
+        distribution Linux embarquée ;
+  \item l'intégration automatisée de l'analyse statique et de l'analyse de
+        composition logicielle, avec restitution des résultats directement
+        au développeur ;
+  \item la gestion de l'infrastructure d'exécution des traitements ;
+  \item la mise en place d'une solution d'observabilité restituant
+        l'évolution des indicateurs de qualité dans le temps.
+\end{itemize}
+
+Cette mission s'est déroulée sur 6 mois, au sein d'une
+phase du programme Bluebird où la vague~1.2 (\ProduitCourt{}) était déjà en
+développement actif : la chaîne d'intégration existait donc avant mon
+arrivée, et ma mission a consisté à en prendre la responsabilité, à en
+corriger les défauts et à la faire évoluer, plutôt qu'à la concevoir depuis
+une feuille blanche. Le développement fonctionnel du firmware restait à la
+charge des développeurs de l'équipe \gls{com} ; mon périmètre se limitait à
+l'outillage de construction, de vérification et de livraison décrit
+ci-dessus.
 
 \section{Synthèse}
 \label{sec:ctx-synthese}
 
-\aecrire{Un paragraphe de transition vers le chapitre~3 : avant de concevoir,
-examiner ce que la littérature et l'industrie proposent pour ces problèmes.}
+Ce chapitre a présenté le cadre industriel de ce mémoire : \Entreprise{}, le
+programme Bluebird et le \ProduitCourt{}, ainsi que le périmètre concret de
+ma mission au sein de l'équipe \gls{com}. Avant de détailler les décisions de
+conception et leur mise en œuvre, il convient d'examiner ce que la
+littérature et l'industrie proposent déjà pour les problèmes rencontrés sur
+ce type de chaîne — c'est l'objet du chapitre suivant.

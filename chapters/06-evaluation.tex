@@ -57,88 +57,14 @@ concomitantes ?), validité externe (généralisation à d'autres produits),
 fiabilité (les mesures sont-elles reproductibles ?).}
 
 % ===========================================================================
-\section{Reproductibilité de l'environnement}
-\label{sec:eval-reproductibilite}
+\section{Impact}
+\label{sec:eval-impact}
 
-\aecrire{Protocole proposé : construire une même révision du code à deux dates
-distinctes et sur deux machines distinctes avec la même étiquette d'image,
-puis comparer. Indiquer précisément ce qui est comparé : versions des outils,
-réussite de la construction, et si possible empreinte des artefacts produits.
-Discuter les écarts constatés et leurs causes (horodatages, chemins de
-construction, ordre de liaison).}
+\aecrire{Section chapeau (2-3 phrases) : annoncer que cette section restitue
+les effets de la chaîne au-delà de la seule mesure technique — indicateurs de
+performance de livraison, coût, retour des équipes.}
 
-\chiffre{Résultat de la comparaison des empreintes d'artefacts.}
-
-% ===========================================================================
-\section{Performance de la chaîne}
-\label{sec:eval-performance}
-
-\subsection{Durées de construction}
-\begin{table}[H]
-\centering
-\caption{Durées de construction observées}
-\label{tab:eval-durees}
-\begin{tabular}{@{}lccc@{}}
-\toprule
-\textbf{Chaîne} & \textbf{Minimum} & \textbf{Médiane} & \textbf{Maximum} \\
-\midrule
-Applicative (matrice complète) & & & \\
-Distribution, variante dev & & & \\
-Distribution, variante prod & & & \\
-Publication de l'image de compilation & & & \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Effet du cache d'état partagé}
-\aecrire{Comparer construction à froid et à chaud. C'est un résultat
-quantitatif fort et facile à obtenir : ne pas le négliger. Présenter sous
-forme de tableau puis d'un graphique.}
-
-\begin{figure}[H]
-\centering
-\aecrire{Graphique : durée de construction avec et sans cache, par variante.}
-\caption{Incidence du cache d'état partagé sur la durée de construction}
-\label{fig:eval-cache}
-\end{figure}
-
-\subsection{Effet du parallélisme de la matrice}
-\aecrire{Comparer la durée cumulée des quatre configurations exécutées en
-séquence à la durée réelle observée en parallèle.}
-
-% ===========================================================================
-\section{Qualité et sécurité}
-\label{sec:eval-qualite}
-
-\subsection{Couverture de code}
-\begin{figure}[H]
-\centering
-\aecrire{Graphique d'évolution de la couverture (lignes, fonctions, branches)
-sur la période d'observation.}
-\caption{Évolution de la couverture de code}
-\label{fig:eval-couverture}
-\end{figure}
-
-\subsection{Défauts détectés par l'analyse statique}
-\aecrire{Présenter la répartition initiale des défauts par priorité, puis leur
-évolution. Distinguer les défauts préexistants des défauts nouvellement
-introduits : c'est la distinction qui donne du sens à la mesure.}
-
-\chiffre{Nombre de défauts de priorité 1 et 2 au démarrage et en fin de
-période.}
-
-\subsection{Vulnérabilités des composants tiers}
-\aecrire{Présenter le nombre de composants identifiés et la répartition des
-vulnérabilités par sévérité. Souligner l'apport principal : avant la mise en
-place, l'inventaire des composants n'existait pas de manière automatisée.}
-
-\subsection{Détection des régressions}
-\aecrire{Si des cas concrets de régressions détectées par la chaîne avant
-intégration sont documentés, les citer. Un exemple réel vaut mieux qu'un
-paragraphe général.}
-
-% ===========================================================================
-\section{Indicateurs de performance de livraison}
+\subsection{Indicateurs de performance de livraison}
 \label{sec:eval-dora}
 
 \begin{table}[H]
@@ -161,8 +87,7 @@ Délai de rétablissement & Temps de remise en état d'une chaîne cassée & & \
 (section~\ref{sec:art-dora}). Si les valeurs « avant » sont estimées et non
 mesurées, l'indiquer dans le tableau et dans le texte.}
 
-% ===========================================================================
-\section{Coût et effort d'administration}
+\subsection{Coût et effort d'administration}
 \label{sec:eval-cout}
 
 \aecrire{Estimer : coût d'exécution de l'infrastructure, temps d'ingénierie
@@ -171,14 +96,129 @@ jalon, préparation des environnements, collecte des rapports), et effort de
 maintenance de la chaîne elle-même. Ne pas dissimuler ce dernier poste : une
 chaîne d'intégration a un coût de possession.}
 
-% ===========================================================================
-\section{Retour des utilisateurs}
+\subsection{Retour des utilisateurs}
 \label{sec:eval-retour}
 
 \aecrire{Si un recueil auprès des développeurs est possible dans les délais,
 même informel, l'intégrer : quelques verbatims bien choisis renforcent
 considérablement une étude de cas. Préciser le nombre de personnes
 interrogées et la méthode.}
+
+\subsection{Apports pour l'entreprise}
+\label{sec:eval-apports-entreprise}
+
+\aecrire{Distinguer l'apport technique de l'apport organisationnel : au-delà
+de l'outillage, la chaîne modifie les pratiques de l'équipe, rend visible la
+qualité et fournit les éléments de preuve attendus par le cadre normatif.}
+
+% ===========================================================================
+\section{Difficultés rencontrées}
+\label{sec:eval-difficultes}
+
+\aecrire{Section chapeau : consolider ici les difficultés concrètes
+rencontrées pendant la mise en œuvre (renvoyer aux difficultés déjà détaillées
+section~\ref{sec:impl-pipeline-app} pour la chaîne applicative) et celles
+propres à la mesure elle-même.}
+
+\subsection{Difficultés techniques}
+\aecrire{Reprendre et synthétiser les difficultés déjà documentées au
+chapitre~5 : nettoyage des services en fin d'exécution sur un exécuteur neuf,
+délai d'attente au démarrage des services, exclusion des tests destinés au
+cœur temps réel, normalisation des chemins pour l'analyse statique sur
+exécuteurs jetables.}
+
+\subsection{Difficultés liées à la mesure}
+\aecrire{Distinguer des limites méthodologiques (traitées en section
+Discussion) : il s'agit ici des obstacles concrets rencontrés pour collecter
+les mesures elles-mêmes — étude de cas unique, mesures partiellement
+déclaratives, effet d'apprentissage de l'équipe concomitant à la période
+d'observation.}
+
+% ===========================================================================
+\section{Résultats}
+\label{sec:eval-resultats}
+
+\aecrire{Section chapeau (2-3 phrases) : annoncer que cette section présente
+les résultats quantitatifs obtenus, dans l'ordre reproductibilité,
+performance, puis qualité et sécurité.}
+
+\subsection{Reproductibilité de l'environnement}
+\label{sec:eval-reproductibilite}
+
+\aecrire{Protocole proposé : construire une même révision du code à deux dates
+distinctes et sur deux machines distinctes avec la même étiquette d'image,
+puis comparer. Indiquer précisément ce qui est comparé : versions des outils,
+réussite de la construction, et si possible empreinte des artefacts produits.
+Discuter les écarts constatés et leurs causes (horodatages, chemins de
+construction, ordre de liaison).}
+
+\chiffre{Résultat de la comparaison des empreintes d'artefacts.}
+
+\subsection{Performance de la chaîne}
+\label{sec:eval-performance}
+
+\subsubsection{Durées de construction}
+\begin{table}[H]
+\centering
+\caption{Durées de construction observées}
+\label{tab:eval-durees}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Chaîne} & \textbf{Minimum} & \textbf{Médiane} & \textbf{Maximum} \\
+\midrule
+Applicative (matrice complète) & & & \\
+Distribution, variante dev & & & \\
+Distribution, variante prod & & & \\
+Publication de l'image de compilation & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Effet du cache d'état partagé}
+\aecrire{Comparer construction à froid et à chaud. C'est un résultat
+quantitatif fort et facile à obtenir : ne pas le négliger. Présenter sous
+forme de tableau puis d'un graphique.}
+
+\begin{figure}[H]
+\centering
+\aecrire{Graphique : durée de construction avec et sans cache, par variante.}
+\caption{Incidence du cache d'état partagé sur la durée de construction}
+\label{fig:eval-cache}
+\end{figure}
+
+\subsubsection{Effet du parallélisme de la matrice}
+\aecrire{Comparer la durée cumulée des quatre configurations exécutées en
+séquence à la durée réelle observée en parallèle.}
+
+\subsection{Qualité et sécurité}
+\label{sec:eval-qualite}
+
+\subsubsection{Couverture de code}
+\begin{figure}[H]
+\centering
+\aecrire{Graphique d'évolution de la couverture (lignes, fonctions, branches)
+sur la période d'observation.}
+\caption{Évolution de la couverture de code}
+\label{fig:eval-couverture}
+\end{figure}
+
+\subsubsection{Défauts détectés par l'analyse statique}
+\aecrire{Présenter la répartition initiale des défauts par priorité, puis leur
+évolution. Distinguer les défauts préexistants des défauts nouvellement
+introduits : c'est la distinction qui donne du sens à la mesure.}
+
+\chiffre{Nombre de défauts de priorité 1 et 2 au démarrage et en fin de
+période.}
+
+\subsubsection{Vulnérabilités des composants tiers}
+\aecrire{Présenter le nombre de composants identifiés et la répartition des
+vulnérabilités par sévérité. Souligner l'apport principal : avant la mise en
+place, l'inventaire des composants n'existait pas de manière automatisée.}
+
+\subsubsection{Détection des régressions}
+\aecrire{Si des cas concrets de régressions détectées par la chaîne avant
+intégration sont documentés, les citer. Un exemple réel vaut mieux qu'un
+paragraphe général.}
 
 % ===========================================================================
 \section{Discussion}
@@ -187,6 +227,7 @@ interrogées et la méthode.}
 \subsection{Réponses aux questions d'évaluation}
 \aecrire{Reprendre QE1 à QE4 et y répondre explicitement, en s'appuyant sur
 les mesures présentées. Une réponse nuancée et argumentée est attendue.}
+
 
 \subsection{Limites}
 \aecrire{Recenser honnêtement : absence de tests sur cible matérielle réelle

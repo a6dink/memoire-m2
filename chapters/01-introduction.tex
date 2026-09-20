@@ -8,13 +8,39 @@
 \section{Contexte général}
 \label{sec:intro-contexte}
 
-\aecrire{4 à 6 paragraphes. Entonnoir : (1) électrification et numérisation des
-réseaux électriques, place du comptage d'énergie communicant ; (2) le produit
-n'est plus un équipement figé mais une plateforme logicielle mise à jour sur
-le terrain ; (3) conséquence : la qualité et la sécurité du logiciel embarqué
-deviennent un enjeu produit, pas un enjeu d'atelier ; (4) l'industrialisation
-de la chaîne de production logicielle (CI/CD) devient donc un sujet
-d'ingénierie à part entière.}
+L'intégration continue et la livraison continue (CI/CD) sont aujourd'hui des
+pratiques d'ingénierie logicielle bien établies : chaque modification de code
+est construite, testée et validée automatiquement, ce qui permet de détecter
+les régressions au plus tôt et de maintenir le logiciel en permanence dans un
+état livrable. Ces pratiques se sont d'abord développées et généralisées dans
+le monde du logiciel web et cloud, où les cycles de construction se comptent
+en minutes et où le déploiement peut être répété plusieurs fois par jour.
+
+Le développement de firmware pour systèmes embarqués industriels ne présente
+pas ces mêmes conditions favorables. La compilation croisée vers une cible
+matérielle, la génération d'une distribution Linux embarquée complète, la
+dépendance à des outillages propriétaires et l'impossibilité de déployer en
+continu sur un parc de produits déjà installés sont autant de contraintes qui
+rendent l'application directe des pratiques CI/CD classiques difficile.
+Appliquer l'intégration continue à un firmware embarqué est donc un problème
+d'ingénierie distinct, qui exige des adaptations spécifiques plutôt qu'une
+simple transposition des outils du monde applicatif.
+
+À ces contraintes techniques s'ajoutent des exigences de cybersécurité
+croissantes : traçabilité des composants tiers embarqués, détection précoce
+des vulnérabilités, preuve d'un cycle de développement sécurisé. Le logiciel
+embarqué d'un produit industriel n'est plus seulement évalué sur sa
+conformité fonctionnelle, mais aussi sur la capacité de son processus de
+production à démontrer, de façon continue et outillée, qu'il respecte ces
+exigences.
+
+Le CI/CD appliqué à un firmware embarqué ne peut donc pas être une simple
+transposition des pratiques du monde logiciel classique ou du web : les temps
+de construction, la dépendance au matériel, l'impossibilité de déployer en
+continu et le poids des exigences de sécurité imposent une chaîne d'un autre
+ordre, pensée spécifiquement pour ces contraintes. C'est ce problème
+d'ingénierie, appliqué à un cas industriel concret présenté au
+chapitre~\ref{chap:contexte}, que ce mémoire se propose de traiter.
 
 \section{Problématique}
 \label{sec:intro-problematique}
@@ -28,12 +54,10 @@ logiciel classique :
         Linux embarquée complète se comptant en heures et non en minutes ;
   \item un environnement de compilation complexe et fragile, associant chaînes
         de compilation croisée, bibliothèques système et outils propriétaires ;
-  \item des exigences réglementaires et normatives de cybersécurité
-        (IEC~62443-4-1, règlement (UE) 2024/2847 dit \emph{Cyber Resilience
-        Act}) imposant la traçabilité des composants et la détection précoce
-        des vulnérabilités ;
-  \item une exécution des traitements sur une infrastructure mutualisée et
-        éphémère, où aucun état ne persiste d'une exécution à l'autre.
+  \item des exigences réglementaires de cybersécurité imposant la traçabilité 
+        des composants et la détection précoce des vulnérabilités ;
+  \item une exécution des traitements sur une infrastructure éphémère, où 
+        aucun état ne persiste d'une exécution à l'autre.
 \end{itemize}
 
 \medskip
@@ -45,39 +69,32 @@ Ces contraintes conduisent à la question de recherche suivante :
 Comment concevoir et mettre en œuvre une chaîne d'intégration et de livraison
 continues reproductible, sécurisée et mesurable pour le firmware d'un produit
 industriel embarqué, sous contraintes de temps de construction longs,
-d'exigences normatives de cybersécurité et d'infrastructure d'exécution
+d'exigences de cybersécurité et d'infrastructure d'exécution
 éphémère ?
 \end{quote}
 
 \noindent
-Cette question se décline en quatre sous-questions traitées respectivement dans
-les sections~\ref{sec:impl-conteneur} à~\ref{sec:impl-observabilite} :
+Cette question se décline en quatre sous-questions :
 
 \begin{description}[style=nextline,leftmargin=1.5cm]
-  \item[QR1 — Reproductibilité] Comment garantir qu'une même révision du code
+  \item[Reproductibilité] Comment garantir qu'une même révision du code
         source produise un artefact identique, indépendamment de la machine et
         de la date d'exécution ?
-  \item[QR2 — Sécurité] Comment intégrer l'analyse statique du code et
+  \item[Sécurité] Comment intégrer l'analyse statique du code et
         l'analyse de composition logicielle dans le cycle de développement sans
         dégrader la vélocité des équipes de développement ?
-  \item[QR3 — Mesurabilité] Quels indicateurs instrumenter pour piloter la
+  \item[Mesurabilité] Quels indicateurs instrumenter pour piloter la
         qualité de la chaîne, et comment les collecter automatiquement ?
-  \item[QR4 — Passage à l'échelle] Comment dimensionner et administrer
-        l'infrastructure d'exécution de manière automatisée et maîtrisée en
-        coût ?
+  \item[Passage à l'échelle] Comment dimensionner l'infrastructure d'exécution 
+        de manière automatisée et maîtrisée en coût ?
 \end{description}
 
 \section{Objectifs et périmètre}
 \label{sec:intro-perimetre}
 
-\aecrire{Formuler 4 à 5 objectifs opérationnels mesurables, puis délimiter
-explicitement ce qui est hors périmètre.}
-
-Le périmètre de ce travail est la \emph{chaîne de production} du firmware, et
+Le périmètre de ce travail est la \emph{chaîne d'intégration} du firmware, et
 non le firmware lui-même. Sont explicitement exclus : la conception
-fonctionnelle de l'application embarquée, le déploiement des mises à jour sur
-le parc installé, ainsi que la conception matérielle du produit au-delà des
-contraintes qu'elle impose à la compilation.
+fonctionnelle de l'application embarquée, ainsi que la conception matérielle du produit.
 
 \section{Contributions}
 \label{sec:intro-contributions}
@@ -85,44 +102,25 @@ contraintes qu'elle impose à la compilation.
 Les contributions de ce travail sont les suivantes :
 
 \begin{enumerate}[nosep]
-  \item la conteneurisation de l'environnement de compilation applicatif, avec
-        épinglage des versions de l'ensemble de la chaîne d'outils
-        (chapitre~\ref{chap:mise-en-oeuvre}, section~\ref{sec:impl-conteneur}) ;
-  \item la conception de deux chaînes d'intégration distinctes et
+  \item la conteneurisation de l'environnement de compilation applicatif ;
+  \item la consolidation de deux chaînes d'intégration distinctes et
         complémentaires, l'une pour la couche applicative et l'autre pour la
-        distribution Linux embarquée (sections~\ref{sec:impl-pipeline-app}
-        et~\ref{sec:impl-pipeline-yocto}) ;
+        distribution Linux embarquée ;
   \item l'intégration automatisée de l'analyse statique et de l'analyse de
-        composition logicielle avec restitution des résultats au développeur
-        (section~\ref{sec:impl-securite}) ;
-  \item l'automatisation de l'infrastructure d'exécution par
-        \emph{infrastructure as code} (section~\ref{sec:impl-runners}) ;
-  \item la mise en place d'une chaîne d'observabilité restituant l'évolution
-        des indicateurs de qualité dans le temps
-        (section~\ref{sec:impl-observabilite}) ;
-  \item une évaluation quantitative de la chaîne obtenue
-        (chapitre~\ref{chap:evaluation}).
+        composition logicielle avec restitution des résultats au développeur ;
+  \item la gestion de l'infrastructure d'exécution ;
+  \item la mise en place d'une solution d'observabilité restituant l'évolution
+        des indicateurs de qualité dans le temps.
 \end{enumerate}
 
-\section{Méthodologie}
-\label{sec:intro-methodologie}
-
-\aecrire{Assumer explicitement la posture : étude de cas industrielle unique,
-de type recherche-action. Décrire le déroulement : analyse de l'existant,
-recueil des exigences auprès des équipes, conception itérative, mise en
-production incrémentale, mesure. Citer la littérature sur l'étude de cas en
-génie logiciel (Runeson \& Höst) pour asseoir la démarche.}
-
-\section{Organisation du mémoire}
+\section{Organisation du rapport}
 \label{sec:intro-plan}
 
-Le chapitre~\ref{chap:contexte} présente le contexte industriel, le produit et
-l'état initial de la chaîne de développement. Le chapitre~\ref{chap:etat-art}
-dresse l'état de l'art de l'intégration continue, de son application aux
-systèmes embarqués et des pratiques de sécurisation de la chaîne
-d'approvisionnement logicielle. Le chapitre~\ref{chap:besoins} formalise les
-exigences et présente l'architecture retenue ainsi que la justification des
-choix technologiques. Le chapitre~\ref{chap:mise-en-oeuvre} détaille la mise en
-œuvre. Le chapitre~\ref{chap:evaluation} évalue quantitativement les résultats
-obtenus et en discute les limites. Le chapitre~\ref{chap:conclusion} conclut et
-ouvre sur les perspectives.
+Le chapitre~\ref{chap:contexte} présente le contexte industriel et le projet. 
+Le chapitre~\ref{chap:etat-art} dresse l'état de l'art de l'intégration continue, 
+de son application aux systèmes embarqués et l'intégration des scans de sécurité 
+applicatifs. Le chapitre~\ref{chap:besoins} formalise les besoins d'évolution identifiés 
+sur la chaîne existante, précise les décisions d'intégration retenues et détaille la 
+mise en œuvre correspondante. Le chapitre~\ref{chap:evaluation} évalue quantitativement 
+les résultats obtenus et en discute les limites. Le chapitre~\ref{chap:conclusion} 
+conclut et ouvre sur les perspectives.
