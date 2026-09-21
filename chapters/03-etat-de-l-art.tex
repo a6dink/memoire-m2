@@ -70,20 +70,6 @@ identifie de même la durée des constructions et la complexité des
 environnements de test comme deux obstacles récurrents à l'adoption de ces
 pratiques~\cite{shahin2017continuous}.
 
-\subsection{Construction d'une distribution Linux embarquée}
-
-La production de l'image bas niveau s'appuie sur des outils dédiés. Le projet
-Yocto fournit un cadre de description déclarative d'une distribution Linux
-embarquée, organisé en couches et en recettes, et mutualise les résultats
-intermédiaires de construction afin d'éviter de tout recompiler à chaque
-exécution~\cite{yoctoref}. L'outil kas complète ce cadre en décrivant dans un
-fichier unique la configuration de construction d'un projet, ce qui rend cette
-configuration versionnable et reproductible~\cite{kasdoc}.
-
-\aecrire{Ne pas détailler davantage les recettes ni les couches : la
-configuration effectivement retenue est décrite au
-chapitre~\ref{chap:besoins}.}
-
 \subsection{Reproductibilité du livrable}
 
 Au-delà de l'automatisation, le bénéfice attendu d'une chaîne d'intégration
@@ -125,7 +111,7 @@ pas la pertinence des tests, et son intérêt principal en intégration continue
 réside moins dans la valeur absolue atteinte que dans le suivi de sa
 \emph{tendance} au fil des livraisons.
 
-\subsection{Analyse statique de code}
+\subsection{Analyse statique de code (SAST)}
 \label{ssec:art-sast}
 
 L'analyse statique consiste à rechercher des défauts dans le code sans
@@ -150,7 +136,7 @@ conséquences différentes sur l'adhésion des développeurs.
 chapitre~\ref{chap:besoins} pour sa justification, ainsi qu'au
 chapitre~\ref{chap:evaluation} pour sa discussion.}
 
-\subsection{Analyse de composition logicielle}
+\subsection{Analyse de composition logicielle (SCA)}
 \label{sec:art-supply-chain}
 
 Un produit embarqué n'est pas constitué que de code écrit par l'équipe : il
@@ -226,14 +212,6 @@ réutilisation de résultats intermédiaires pour rester dans des durées
 acceptables. Cette contrainte structure donc l'architecture de la chaîne, qui
 doit organiser explicitement la conservation et la restitution de ces données
 entre exécutions.
-
-\subsection{Mutualisation de l'infrastructure}
-
-Plutôt que d'administrer elle-même ses machines, une équipe peut s'appuyer sur
-un service mutualisé d'orchestration d'exécuteurs (\gls{raas}), fourni par une
-entité interne et partagé entre les projets. L'équipe consomme alors des
-machines à la demande sans supporter le coût d'exploitation associé, au prix
-d'une moindre latitude sur leur configuration.
 
 \aecrire{Préciser que la solution effectivement utilisée est décrite au
 chapitre~\ref{chap:besoins}, et rappeler qu'il s'agit d'une contrainte

@@ -8,39 +8,17 @@
 \section{Contexte général}
 \label{sec:intro-contexte}
 
-L'intégration continue et la livraison continue (CI/CD) sont aujourd'hui des
-pratiques d'ingénierie logicielle bien établies : chaque modification de code
-est construite, testée et validée automatiquement, ce qui permet de détecter
-les régressions au plus tôt et de maintenir le logiciel en permanence dans un
-état livrable. Ces pratiques se sont d'abord développées et généralisées dans
-le monde du logiciel web et cloud, où les cycles de construction se comptent
-en minutes et où le déploiement peut être répété plusieurs fois par jour.
-
-Le développement de firmware pour systèmes embarqués industriels ne présente
-pas ces mêmes conditions favorables. La compilation croisée vers une cible
-matérielle, la génération d'une distribution Linux embarquée complète, la
-dépendance à des outillages propriétaires et l'impossibilité de déployer en
-continu sur un parc de produits déjà installés sont autant de contraintes qui
-rendent l'application directe des pratiques CI/CD classiques difficile.
-Appliquer l'intégration continue à un firmware embarqué est donc un problème
-d'ingénierie distinct, qui exige des adaptations spécifiques plutôt qu'une
-simple transposition des outils du monde applicatif.
-
-À ces contraintes techniques s'ajoutent des exigences de cybersécurité
-croissantes : traçabilité des composants tiers embarqués, détection précoce
-des vulnérabilités, preuve d'un cycle de développement sécurisé. Le logiciel
-embarqué d'un produit industriel n'est plus seulement évalué sur sa
-conformité fonctionnelle, mais aussi sur la capacité de son processus de
-production à démontrer, de façon continue et outillée, qu'il respecte ces
-exigences.
-
-Le CI/CD appliqué à un firmware embarqué ne peut donc pas être une simple
-transposition des pratiques du monde logiciel classique ou du web : les temps
-de construction, la dépendance au matériel, l'impossibilité de déployer en
-continu et le poids des exigences de sécurité imposent une chaîne d'un autre
-ordre, pensée spécifiquement pour ces contraintes. C'est ce problème
-d'ingénierie, appliqué à un cas industriel concret présenté au
-chapitre~\ref{chap:contexte}, que ce mémoire se propose de traiter.
+Bien que l’intégration continue et la livraison continue (CI/CD) soient devenues 
+des pratiques essentielles dans le développement logiciel moderne, leur application 
+au développement de firmware embarqué industriel reste complexe en raison de 
+contraintes spécifiques telles que les temps de compilation élevés, la dépendance 
+au matériel, l’utilisation d’outils propriétaires et l’impossibilité de déployer 
+continuellement les mises à jour sur les produits installés. À ces défis s’ajoutent 
+des exigences croissantes de cybersécurité, notamment en matière de traçabilité des 
+composants, de détection des vulnérabilités et de démonstration d’un cycle de 
+développement sécurisé. L’adaptation des principes CI/CD à ce contexte constitue 
+donc un véritable problème d’ingénierie nécessitant une approche dédiée, que 
+ce mémoire étudie à travers un cas industriel concret.
 
 \section{Problématique}
 \label{sec:intro-problematique}
@@ -73,22 +51,6 @@ d'exigences de cybersécurité et d'infrastructure d'exécution
 éphémère ?
 \end{quote}
 
-\noindent
-Cette question se décline en quatre sous-questions :
-
-\begin{description}[style=nextline,leftmargin=1.5cm]
-  \item[Reproductibilité] Comment garantir qu'une même révision du code
-        source produise un artefact identique, indépendamment de la machine et
-        de la date d'exécution ?
-  \item[Sécurité] Comment intégrer l'analyse statique du code et
-        l'analyse de composition logicielle dans le cycle de développement sans
-        dégrader la vélocité des équipes de développement ?
-  \item[Mesurabilité] Quels indicateurs instrumenter pour piloter la
-        qualité de la chaîne, et comment les collecter automatiquement ?
-  \item[Passage à l'échelle] Comment dimensionner l'infrastructure d'exécution 
-        de manière automatisée et maîtrisée en coût ?
-\end{description}
-
 \section{Objectifs et périmètre}
 \label{sec:intro-perimetre}
 
@@ -112,15 +74,3 @@ Les contributions de ce travail sont les suivantes :
   \item la mise en place d'une solution d'observabilité restituant l'évolution
         des indicateurs de qualité dans le temps.
 \end{enumerate}
-
-\section{Organisation du rapport}
-\label{sec:intro-plan}
-
-Le chapitre~\ref{chap:contexte} présente le contexte industriel et le projet. 
-Le chapitre~\ref{chap:etat-art} dresse l'état de l'art de l'intégration continue, 
-de son application aux systèmes embarqués et l'intégration des scans de sécurité 
-applicatifs. Le chapitre~\ref{chap:besoins} formalise les besoins d'évolution identifiés 
-sur la chaîne existante, précise les décisions d'intégration retenues et détaille la 
-mise en œuvre correspondante. Le chapitre~\ref{chap:evaluation} évalue quantitativement 
-les résultats obtenus et en discute les limites. Le chapitre~\ref{chap:conclusion} 
-conclut et ouvre sur les perspectives.
