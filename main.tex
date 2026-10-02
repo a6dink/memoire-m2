@@ -17,6 +17,10 @@
 % --------------------------------------------------------------- Pages liminaires
 \frontmatter
 \pagenumbering{roman}
+% Pas de pages blanches dans les pages liminaires : \chapter* force sinon
+% chaque début de section sur une page impaire (option openright).
+\let\oldcleardoublepage\cleardoublepage
+\let\cleardoublepage\clearpage
 
 \input{frontmatter/page-de-garde}
 \input{frontmatter/confidentialite}
@@ -36,6 +40,7 @@
 
 % --------------------------------------------------------------- Corps du mémoire
 \mainmatter
+\let\cleardoublepage\oldcleardoublepage
 \pagenumbering{arabic}
 \setcounter{page}{1}
 
