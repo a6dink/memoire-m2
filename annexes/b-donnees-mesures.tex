@@ -8,20 +8,47 @@
 \section{Relevé des exécutions}
 \label{ann:releve-executions}
 
-\aecrire{Tableau des exécutions retenues : identifiant, date, chaîne, issue,
-durée. Produit par \texttt{scripts/collecte-mesures.sh}. Si le volume est
-important, n'en présenter qu'un échantillon représentatif et indiquer
-l'effectif total.}
+Le relevé complet (200 exécutions, dont 36 de la chaîne hors périmètre
+\texttt{evo-bench-image}) est produit par \texttt{scripts/collecte-mesures.sh}
+et conservé dans \texttt{mesures/executions.csv}. Le
+tableau~\ref{tab:ann-synthese} en donne la synthèse par chaîne ; le
+tableau~\ref{tab:ann-executions} en présente un extrait.
+
+\begin{table}[H]
+\centering
+\caption{Synthèse des exécutions par chaîne (11 août -- 17 septembre 2026)}
+\label{tab:ann-synthese}
+\small
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+\textbf{Chaîne} & \textbf{Ex.} & \textbf{Succès} & \textbf{Échecs} & \textbf{Taux (\%)} &
+\textbf{Min} & \textbf{Méd.} & \textbf{Max} \\
+\midrule
+\texttt{pm77xx-app} & 108 & 86 & 19 & 79,6 & 0,2 & 21,8 & 137,3 \\
+\texttt{pm77xx-yocto} & 51 & 41 & 9 & 80,4 & 1,9 & 68,2 & 77,0 \\
+\texttt{publish-image} & 5 & 2 & 3 & 40,0 & 2,8 & 3,1 & 49,3 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{table}[H]
 \centering
 \caption{Extrait du relevé des exécutions}
 \label{tab:ann-executions}
-\begin{tabular}{@{}llllr@{}}
+\small
+\begin{tabular}{@{}rllll@{}}
 \toprule
 \textbf{Id.} & \textbf{Date} & \textbf{Chaîne} & \textbf{Issue} & \textbf{Durée (min)} \\
 \midrule
- & & & & \\
+13128034 & 2026-09-17 & \texttt{pm77xx-app} (planifiée) & succès & 31,7 \\
+13126425 & 2026-09-16 & \texttt{pm77xx-yocto} (planifiée) & succès & 69,6 \\
+13095487 & 2026-09-16 & \texttt{pm77xx-app} (planifiée) & succès & 21,0 \\
+12976540 & 2026-09-10 & \texttt{publish-image} & succès & 47,9 \\
+12973371 & 2026-09-10 & \texttt{publish-image} & échec & 3,1 \\
+12911060 & 2026-09-08 & \texttt{pm77xx-yocto} (planifiée) & échec & 68,1 \\
+12425229 & 2026-08-21 & \texttt{pm77xx-app} (planifiée) & succès & 137,3 \\
+12243079 & 2026-08-13 & \texttt{pm77xx-app} (manuelle) & échec & 6,7 \\
+12145741 & 2026-08-11 & \texttt{pm77xx-app} (planifiée) & échec & 12,7 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -29,18 +56,25 @@ l'effectif total.}
 \section{Mesures de couverture}
 \label{ann:releve-couverture}
 
-\aecrire{Relevé des taux de couverture lignes, fonctions et branches sur la
-période d'observation.}
+Exécution \#1316 de \texttt{pm77xx-app} (DEBUG/amd64) : lignes 32,3\,\%
+(19\,308 / 59\,772), fonctions 20,9\,\% (1\,511 / 7\,216), branches 29,6\,\%
+(5\,559 / 18\,775). Seuils de la synthèse : 50\,\% (bas) et 75\,\% (haut).
+\aecrire{Ajouter l'historique de couverture sur la période (export Grafana).}
 
 \section{Relevé des défauts d'analyse statique}
 \label{ann:releve-defauts}
 
-\aecrire{Nombre de défauts par priorité aux dates de relevé.}
+Vues Coverity du flux « BlueBird w1.2 », à la date de la capture : 3 défauts de
+priorité 1 (vue 48097) et 46 de priorité 2 (vue 48360).
+\aecrire{Ajouter les valeurs au début de la période.}
 
 \section{Relevé des vulnérabilités de composants}
 \label{ann:releve-vulns}
 
-\aecrire{Nombre de composants et répartition des vulnérabilités par sévérité.}
+Archive \texttt{pm77xx-app} RELEASE/aarch64, produit \texttt{pm77xx-app} version
+1.0.0 : 4 composants identifiés dont 3 vulnérables (\texttt{cjson},
+\texttt{openldap}, \texttt{hostapd}) ; 122 vulnérabilités, soit 5 critiques,
+19 élevées, 86 moyennes et 12 faibles.
 
 \section{Protocole de mesure de reproductibilité}
 \label{ann:protocole-repro}

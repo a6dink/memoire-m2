@@ -14,8 +14,10 @@
 \label{sec:eval-protocole}
 
 \subsection{Questions d'évaluation}
-L'évaluation vise à répondre aux quatre sous-questions posées en
-section~\ref{sec:intro-problematique} :
+L'évaluation décline la question de recherche posée en
+section~\ref{sec:intro-problematique} en quatre questions, qui correspondent
+aux axes d'évolution du chapitre~\ref{chap:besoins} (reproductibilité,
+automatisation, qualité et sécurité, observabilité) :
 
 \begin{description}[style=nextline,leftmargin=1.5cm]
   \item[QE1] L'environnement de construction obtenu est-il effectivement
@@ -32,37 +34,68 @@ section~\ref{sec:intro-problematique} :
 \centering
 \caption{Sources des mesures utilisées}
 \label{tab:eval-sources}
+\small
 \begin{tabularx}{\textwidth}{@{}l X l@{}}
 \toprule
 \textbf{Indicateur} & \textbf{Source} & \textbf{Période} \\
 \midrule
-Durée et issue des exécutions & Interface de la plateforme d'orchestration & \\
-Couverture de code & Rapports de l'outil de couverture & \\
-Défauts d'analyse statique & Vues du serveur d'analyse & \\
-Vulnérabilités de composants & Rapports de l'analyseur binaire & \\
-Effort d'administration & Relevé déclaratif auprès de l'équipe & \\
+Durée et issue des exécutions & API de GitHub Actions, via
+  \texttt{scripts/collecte-mesures.sh} &
+  11 août -- 17 sept. 2026 \\
+Couverture de code & Résumé \texttt{gcovr} et tableau de bord Grafana &
+  Exécution \#1316 \\
+Défauts d'analyse statique & Vues Coverity P1 (48097) et P2 (48360) &
+  Date de la capture \\
+Vulnérabilités de composants & Rapport BDBA de l'archive RELEASE/aarch64 &
+  Date de la capture \\
+Coût d'exécution & Estimation à partir des durées de jobs & --- \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\aecrire{Préciser la période d'observation, le nombre d'exécutions prises en
-compte, et le traitement des valeurs aberrantes (exécutions interrompues,
-indisponibilité d'un service externe). Une évaluation sans protocole explicite
-n'est pas défendable.}
+Les durées et les issues proviennent de 164 exécutions des trois chaînes
+décrites au chapitre~\ref{chap:besoins} (108 pour \texttt{pm77xx-app}, 51 pour
+\texttt{pm77xx-yocto}, 5 pour \texttt{publish-image}) sur cinq semaines. Sont
+retenues les exécutions planifiées, manuelles et appelées, sur toutes les
+branches : la chaîne a été développée en même temps qu'elle était mesurée, et
+les exécutions de branches de travail font partie de l'activité observée.
+
+Les exécutions annulées ne sont comptées ni comme succès ni comme échec (3 pour
+\texttt{pm77xx-app}, 1 pour \texttt{pm77xx-yocto}). Les statistiques de durée
+utilisent la médiane plutôt que la moyenne, car deux exécutions planifiées de
+\texttt{pm77xx-app} durent 137,3 min (21 août) et 96,6 min (7 septembre), contre
+20 à 26 min en général. Ces valeurs ne sont pas expliquées par le code et sont
+vraisemblablement liées à la disponibilité des exécuteurs ; elles sont
+conservées dans le relevé de l'annexe~\ref{ann:donnees}.
 
 \subsection{Validité}
-\aecrire{Section courte mais indispensable. Traiter : validité interne (les
-améliorations sont-elles attribuables à la chaîne ou à d'autres évolutions
-concomitantes ?), validité externe (généralisation à d'autres produits),
-fiabilité (les mesures sont-elles reproductibles ?).}
+
+Trois limites encadrent l'interprétation.
+
+\paragraph{Validité interne.} Les chaînes ont évolué pendant la période
+d'observation (refactorisation de \texttt{pm77xx-app}, ajout de la collecte de
+métriques, publication des images, intégration de Robot Framework). Une variation
+de durée ou de taux d'échec ne peut donc pas être attribuée à une cause unique.
+Aucune mesure antérieure à mon arrivée n'existe : les indicateurs n'étaient pas
+historisés avant la mise en place de la collecte.
+
+\paragraph{Validité externe.} Il s'agit d'un produit et d'une équipe. Les
+durées dépendent du service d'exécuteurs de l'entreprise et du volume de code
+de ce firmware ; elles ne se transposent pas telles quelles.
+
+\paragraph{Fiabilité.} Les mesures issues de l'API sont rejouables avec le
+script de collecte. Les valeurs relevées dans les interfaces (couverture,
+défauts, vulnérabilités) sont des instantanés datés, non rejouables.
 
 % ===========================================================================
 \section{Impact}
 \label{sec:eval-impact}
 
-\aecrire{Section chapeau (2-3 phrases) : annoncer que cette section restitue
-les effets de la chaîne au-delà de la seule mesure technique — indicateurs de
-performance de livraison, coût, retour des équipes.}
+Cette section restitue les effets de la chaîne au-delà de la seule mesure
+technique : indicateurs de performance de livraison, coût d'exécution et
+apports pour l'équipe. Faute de mesure antérieure à la mise en place de la
+collecte, les valeurs « avant » ne sont pas disponibles ; seul l'état observé
+pendant la période est donc présenté.
 
 \subsection{Indicateurs de performance de livraison}
 \label{sec:eval-dora}
@@ -71,172 +104,320 @@ performance de livraison, coût, retour des équipes.}
 \centering
 \caption{Indicateurs de performance adaptés au contexte embarqué}
 \label{tab:eval-dora}
-\begin{tabularx}{\textwidth}{@{}l X c c@{}}
+\small
+\begin{tabularx}{\textwidth}{@{}l X c X@{}}
 \toprule
-\textbf{Indicateur} & \textbf{Adaptation retenue} & \textbf{Avant} & \textbf{Après} \\
+\textbf{Indicateur} & \textbf{Adaptation retenue} & \textbf{Avant} & \textbf{Observé (11 août -- 17 sept.)} \\
 \midrule
-Fréquence d'intégration & Nombre d'intégrations validées par semaine & & \\
-Délai de retour & Délai entre soumission et résultat complet & & \\
-Taux d'échec & Part des exécutions en échec imputables au code & & \\
-Délai de rétablissement & Temps de remise en état d'une chaîne cassée & & \\
+Fréquence d'intégration & Nombre d'exécutions de la chaîne applicative par
+  semaine & n.d. & 108 exécutions en cinq semaines, soit environ 20 par semaine \\
+Délai de retour & Durée de la chaîne applicative complète & n.d. &
+  Médiane de 21,8 min \\
+Taux d'échec & Part des exécutions en échec, toutes branches &
+  n.d. & 17,6\,\% (19 sur 108) pour \texttt{pm77xx-app}, 17,6\,\% (9 sur 51)
+  pour \texttt{pm77xx-yocto} \\
+Délai de rétablissement & Délai jusqu'à la prochaine exécution
+  planifiée réussie & n.d. & Au plus la nuit suivante pour les cinq échecs
+  planifiés observés \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\aecrire{Justifier chaque adaptation par rapport à la définition d'origine
-(section~\ref{sec:art-dora}). Si les valeurs « avant » sont estimées et non
-mesurées, l'indiquer dans le tableau et dans le texte.}
+Ces indicateurs sont adaptés de ceux de la section~\ref{sec:art-dora}. Le
+débit d'intégration est approché par le nombre d'exécutions de la chaîne
+applicative, faute de notion de déploiement en production pour un firmware. Le
+délai de retour remplace le délai de mise en production par la durée entre le
+déclenchement et le résultat complet. Le taux d'échec est brut : il inclut les
+exécutions de branches où la chaîne elle-même était en cours de mise au point
+(section~\ref{sec:eval-difficultes}) et ne mesure donc pas uniquement la
+qualité du code. Pour le rétablissement, les cinq échecs des exécutions
+planifiées sur \texttt{main} (applicative les 11 août, 17 août et 1\ier{}
+septembre, distribution les 2 et 8 septembre) ont chacun été suivis d'une exécution
+réussie la nuit suivante ; le temps de correction proprement dit n'est pas
+mesuré.
 
 \subsection{Coût et effort d'administration}
 \label{sec:eval-cout}
 
-\aecrire{Estimer : coût d'exécution de l'infrastructure, temps d'ingénierie
-économisé sur les tâches auparavant manuelles (analyse de composants avant
-jalon, préparation des environnements, collecte des rapports), et effort de
-maintenance de la chaîne elle-même. Ne pas dissimuler ce dernier poste : une
-chaîne d'intégration a un coût de possession.}
+\paragraph{Coût d'exécution.} Les exécutions planifiées de la chaîne applicative
+cumulent environ 35 min de temps d'exécuteur par nuit (somme des quatre cellules
+de la matrice : 19 min 28 s, 5 min 06 s, 5 min 17 s et 4 min 55 s). Celles de la
+distribution en cumulent environ 5 h 25 (cinq cellules d'environ 65 min). Sur
+les cinq nuits ouvrées, cela représente de l'ordre de 30 heures de temps
+d'exécuteur par semaine, hors jobs légers et hors exécutions manuelles. Il
+s'agit d'une estimation à partir de durées de jobs, non d'une facturation. La
+distribution représente plus de 90\,\% de ce total, ce qui désigne le cache de
+construction (section~\ref{sec:eval-performance}) comme principal levier.
+
+\paragraph{Effort de maintenance.} La chaîne a elle-même un coût de possession.
+Le repère le plus visible est le nombre de scripts maintenus (une douzaine sous
+\texttt{scripts/}), les versions épinglées de l'image de compilation à mettre à
+à jour et les jetons d'accès aux services d'analyse et de publication.
+\aecrire{Estimer, si possible, le temps de maintenance hebdomadaire de la chaîne
+et le temps économisé sur les tâches auparavant manuelles (inventaire des
+composants avant jalon, préparation des environnements, collecte des rapports).}
 
 \subsection{Retour des utilisateurs}
 \label{sec:eval-retour}
 
-\aecrire{Si un recueil auprès des développeurs est possible dans les délais,
-même informel, l'intégrer : quelques verbatims bien choisis renforcent
-considérablement une étude de cas. Préciser le nombre de personnes
-interrogées et la méthode.}
+Aucun recueil formel n'a été mené. Les échanges avec les trois développeurs de
+l'équipe COM et le Product Owner (chapitre~\ref{chap:besoins}) ont orienté les
+besoins mais ne constituent pas une mesure de satisfaction.
+\aecrire{Si un retour des développeurs peut être recueilli, même informel,
+l'ajouter ici avec le nombre de personnes interrogées et la méthode.}
 
 \subsection{Apports pour l'entreprise}
 \label{sec:eval-apports-entreprise}
 
-\aecrire{Distinguer l'apport technique de l'apport organisationnel : au-delà
-de l'outillage, la chaîne modifie les pratiques de l'équipe, rend visible la
-qualité et fournit les éléments de preuve attendus par le cadre normatif.}
+\paragraph{Apport technique.} Les développeurs applicatifs disposent d'un
+compilateur croisé (le \gls{sdk}) et d'une image de référence publiés dans
+Artifactory sans reconstruire la distribution, et d'un environnement de
+compilation unique pour la compilation native et croisée
+(section~\ref{sec:impl-conteneur}). L'inventaire des composants tiers, qui
+n'existait pas de manière automatisée, est désormais produit à chaque exécution
+(4 composants identifiés dans l'archive de production).
+
+\paragraph{Apport organisationnel.} La qualité devient visible : le tableau de
+bord Grafana affiche en permanence le niveau de couverture (32,3\,\% des lignes),
+les défauts ouverts (3 de priorité 1 et 46 de priorité 2) et la répartition des
+vulnérabilités. Cette visibilité donne à l'équipe et au Product Owner une base
+de discussion factuelle. Elle fournit aussi des éléments de preuve pour les
+obligations de traçabilité des composants évoquées en
+section~\ref{sec:art-supply-chain}.
 
 % ===========================================================================
 \section{Difficultés rencontrées}
 \label{sec:eval-difficultes}
 
-\aecrire{Section chapeau : consolider ici les difficultés concrètes
-rencontrées pendant la mise en œuvre (renvoyer aux difficultés déjà détaillées
-section~\ref{sec:impl-pipeline-app} pour la chaîne applicative) et celles
-propres à la mesure elle-même.}
+Cette section consolide les difficultés rencontrées pendant la mise en
+œuvre, détaillées dans les sections du chapitre~\ref{chap:besoins}
+(par exemple section~\ref{sec:impl-pipeline-app} pour la chaîne applicative), et
+celles propres à la mesure.
 
 \subsection{Difficultés techniques}
-\aecrire{Reprendre et synthétiser les difficultés déjà documentées au
-chapitre~5 : nettoyage des services en fin d'exécution sur un exécuteur neuf,
-délai d'attente au démarrage des services, exclusion des tests destinés au
-cœur temps réel, normalisation des chemins pour l'analyse statique sur
-exécuteurs jetables.}
+Les difficultés techniques se regroupent en cinq familles.
+
+\begin{itemize}[nosep]
+  \item \textbf{Exécuteur sans droits.} L'infrastructure impose un conteneur en
+        superutilisateur, or BitBake refuse de s'exécuter sous cet utilisateur : la
+        chaîne Yocto transfère la propriété de l'espace de travail et lance kas par
+        \texttt{su user -c} (section~\ref{sec:impl-pipeline-yocto}).
+  \item \textbf{Chemins instables.} Les chemins d'artefacts conservent
+        l'arborescence du conteneur (\texttt{/\_\_w/ci/ci/...}), ce qui oblige les jobs
+        aval à les reconstituer (section~\ref{ssec:impl-ut}), et l'analyse statique
+        nécessite \texttt{--strip-path} pour que les défauts restent corrélables
+        (section~\ref{ssec:impl-coverity}).
+  \item \textbf{Services dans un conteneur.} Les tests d'intégration exigent le
+        démarrage de services système sans gestionnaire de services complet, avec
+        arrêt garanti même en cas d'échec (section~\ref{ssec:impl-robot}).
+  \item \textbf{Exécutions bloquées.} Les gardes \texttt{timeout-minutes} (1
+        minute pour les tests unitaires, 5 minutes pour le lancement des services)
+        évitent d'immobiliser un exécuteur.
+  \item \textbf{Codes de sortie et formats.} Un code de sortie non nul de
+        \texttt{extract\_cov.sh} colorait l'étape en rouge alors que le résultat était
+        déjà publié ; les compteurs négatifs de \texttt{gcov} interrompaient la
+        génération du rapport de couverture sans l'option
+        \texttt{negative\_hits.warn}.
+\end{itemize}
 
 \subsection{Difficultés liées à la mesure}
-\aecrire{Distinguer des limites méthodologiques (traitées en section
-Discussion) : il s'agit ici des obstacles concrets rencontrés pour collecter
-les mesures elles-mêmes — étude de cas unique, mesures partiellement
-déclaratives, effet d'apprentissage de l'équipe concomitant à la période
-d'observation.}
+Trois obstacles ont affecté la collecte des mesures.
+
+\paragraph{Une mesure mêlée à la mise au point.} Les échecs se concentrent sur
+les branches où la chaîne était développée : six échecs successifs de
+\texttt{pm77xx-app} sur \texttt{feat/runner-ci-collect-metrics} le 13 août
+(6,3 à 25,9 min), des échecs de \texttt{pm77xx-yocto} sur
+\texttt{feat/publish-bsp-images} les 11 et 12 août, trois échecs sur
+\texttt{feat/BE-2338-robot-framework-integration} du 7 au 9 septembre, et trois
+échecs de \texttt{publish-image} à l'étape de construction le 10 septembre
+(2,8 à 3,1 min). Le taux d'échec brut surestime donc le taux d'échec du produit.
+
+\paragraph{Une chaîne sans historique.} Les indicateurs n'étaient pas historisés
+avant la mise en place de la collecte (section~\ref{ssec:impl-observabilite}) :
+il n'existe pas de point de comparaison antérieur.
+
+\paragraph{Des instantanés non rejouables.} Les valeurs de couverture, de
+défauts et de vulnérabilités sont lues dans des interfaces à une date donnée.
+Seules les durées et les issues sont reconstructibles par l'API.
 
 % ===========================================================================
 \section{Résultats}
 \label{sec:eval-resultats}
 
-\aecrire{Section chapeau (2-3 phrases) : annoncer que cette section présente
-les résultats quantitatifs obtenus, dans l'ordre reproductibilité,
-performance, puis qualité et sécurité.}
+Cette section présente les résultats quantitatifs dans l'ordre
+reproductibilité, performance, puis qualité et sécurité. Les résultats de
+performance reposent sur le relevé des exécutions ; ceux de qualité sont des
+instantanés datés.
 
 \subsection{Reproductibilité de l'environnement}
 \label{sec:eval-reproductibilite}
 
-\aecrire{Protocole proposé : construire une même révision du code à deux dates
-distinctes et sur deux machines distinctes avec la même étiquette d'image,
-puis comparer. Indiquer précisément ce qui est comparé : versions des outils,
-réussite de la construction, et si possible empreinte des artefacts produits.
-Discuter les écarts constatés et leurs causes (horodatages, chemins de
-construction, ordre de liaison).}
+La reproductibilité repose sur trois dispositifs décrits au
+chapitre~\ref{chap:besoins} : les versions de tous les outils sont épinglées
+dans l'image de compilation (tableau~\ref{tab:impl-image-versions}), la même
+image sert à la compilation native et croisée, et une image n'est promue sous
+son étiquette définitive qu'après avoir construit l'application complète
+(section~\ref{sec:impl-conteneur}).
 
-\chiffre{Résultat de la comparaison des empreintes d'artefacts.}
+Le relevé fournit une preuve indirecte. Sur la période, les exécutions
+planifiées de \texttt{pm77xx-app} sur la branche \texttt{main} se situent dans une
+plage étroite (20,1 à 26,0 min, hors les deux valeurs aberrantes
+expliquées en section~\ref{sec:eval-protocole}), et les exécutions de la chaîne
+de distribution réussies dans une plage de 63,7 à 77,0 min. Cette régularité
+est compatible avec un environnement stable, sans le démontrer : la durée ne
+prouve pas l'identité des artefacts.
+
+\aecrire{Réaliser, si possible, la comparaison directe : construire une même
+révision à deux dates avec la même étiquette d'image, puis comparer les
+empreintes des artefacts (et expliquer les écarts : horodatages, chemins).
+Décrire le protocole en annexe~\ref{ann:protocole-repro}.}
 
 \subsection{Performance de la chaîne}
 \label{sec:eval-performance}
 
 \subsubsection{Durées de construction}
+Le tableau~\ref{tab:eval-durees} donne les durées en minutes, toutes issues
+confondues. Les minimums correspondent à des exécutions annulées ou
+échouées immédiatement. La médiane de \texttt{publish-image} reflète trois
+échecs sur cinq à l'étape de construction (2,8 à 3,1 min) ; les deux
+exécutions réussies durent 47,9 et 49,3 min.
+
 \begin{table}[H]
 \centering
-\caption{Durées de construction observées}
+\caption{Durées de construction observées (minutes)}
 \label{tab:eval-durees}
-\begin{tabular}{@{}lccc@{}}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
-\textbf{Chaîne} & \textbf{Minimum} & \textbf{Médiane} & \textbf{Maximum} \\
+\textbf{Chaîne} & \textbf{Exécutions} & \textbf{Minimum} & \textbf{Médiane} & \textbf{Maximum} \\
 \midrule
-Applicative (matrice complète) & & & \\
-Distribution, variante dev & & & \\
-Distribution, variante prod & & & \\
-Publication de l'image de compilation & & & \\
+\texttt{pm77xx-app} (matrice complète) & 108 & 0,2 & 21,8 & 137,3 \\
+\texttt{pm77xx-yocto} (cinq variantes) & 51 & 1,9 & 68,2 & 77,0 \\
+\texttt{publish-image} & 5 & 2,8 & 3,1 & 49,3 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsubsection{Effet du cache d'état partagé}
-\aecrire{Comparer construction à froid et à chaud. C'est un résultat
-quantitatif fort et facile à obtenir : ne pas le négliger. Présenter sous
-forme de tableau puis d'un graphique.}
+La durée médiane de la chaîne applicative (21,8 min) est compatible avec
+l'exigence ENF4 : le résultat complet (compilation, analyses, tests et
+couverture) est disponible en moins d'une demi-heure. Les exécutions planifiées
+montrent une baisse nette au cours de la période : de 24,7 à 26,0 min du 11 au
+19 août à 20,1 à 21,4 min du 20 au 31 août. Cette baisse suit les essais de la
+branche \texttt{refactor/pm77xx-app} (18 et 19 août) ; le lien est vraisemblable
+mais non établi, d'autres modifications ayant eu lieu au même moment
+(section~\ref{sec:eval-protocole}).
 
-\begin{figure}[H]
-\centering
-\aecrire{Graphique : durée de construction avec et sans cache, par variante.}
-\caption{Incidence du cache d'état partagé sur la durée de construction}
-\label{fig:eval-cache}
-\end{figure}
+\subsubsection{Durée de la distribution et cache}
+La distribution est construite à froid à chaque exécution : la médiane est de
+68,2 min pour cinq variantes en parallèle, avec une plage de 63,7 à 77,0 min
+entre les exécutions réussies. Cette faible dispersion confirme l'absence d'effet de cache d'une exécution à l'autre, puisque les répertoires
+\texttt{DL\_DIR} et \texttt{SSTATE\_DIR} sont détruits avec l'exécuteur
+(section~\ref{ssec:impl-runners}). La comparaison construction à froid et
+à chaud n'a pas pu être réalisée : les solutions NFS et snapshot ont été
+étudiées mais pas mises en œuvre. Cette absence est présentée comme une limite
+et comme la première perspective (section~\ref{sec:eval-discussion}).
 
 \subsubsection{Effet du parallélisme de la matrice}
-\aecrire{Comparer la durée cumulée des quatre configurations exécutées en
-séquence à la durée réelle observée en parallèle.}
+Sur l'exécution \#1316, les quatre cellules durent 19 min 28 s, 5 min 06 s,
+5 min 17 s et 4 min 55 s, soit 34 min 46 s si elles étaient exécutées l'une
+après l'autre. La durée réelle de l'exécution est de 23 min 06 s, soit un gain
+d'environ 33\,\%. Ce gain est borné par la cellule DEBUG/amd64, qui porte les
+tests et la couverture et occupe à elle seule 19 min 28 s : ajouter de la
+parallélisation entre cellules n'y changerait rien, seul un découpage de cette
+cellule le ferait.
 
 \subsection{Qualité et sécurité}
 \label{sec:eval-qualite}
 
 \subsubsection{Couverture de code}
-\begin{figure}[H]
-\centering
-\aecrire{Graphique d'évolution de la couverture (lignes, fonctions, branches)
-sur la période d'observation.}
-\caption{Évolution de la couverture de code}
-\label{fig:eval-couverture}
-\end{figure}
+Sur l'exécution \#1316, la couverture mesurée par \texttt{gcovr} est de
+32,3\,\% des lignes (19\,308 sur 59\,772), 20,9\,\% des fonctions (1\,511 sur
+7\,216) et 29,6\,\% des branches (5\,559 sur 18\,775). Les trois indicateurs
+sont sous le seuil bas de 50\,\% configuré dans la synthèse. Ce niveau est
+connu et rendu visible plutôt que masqué : la mise en place de la mesure est un
+résultat en soi, puisqu'aucune valeur n'existait auparavant.
+\aecrire{Ajouter l'évolution de la couverture sur la période (export du tableau
+de bord Grafana), sous forme de figure.}
 
 \subsubsection{Défauts détectés par l'analyse statique}
-\aecrire{Présenter la répartition initiale des défauts par priorité, puis leur
-évolution. Distinguer les défauts préexistants des défauts nouvellement
-introduits : c'est la distinction qui donne du sens à la mesure.}
-
-\chiffre{Nombre de défauts de priorité 1 et 2 au démarrage et en fin de
-période.}
+Les vues Coverity restreintes au code de l'équipe comptent 3 défauts de
+priorité 1 et 46 de priorité 2 à la date de la capture. Ce stock correspond à
+la dette initiale du projet et justifie la politique de non-blocage décrite en
+section~\ref{ssec:impl-coverity}. Distinguer défauts préexistants et défauts
+nouvellement introduits suppose un historique que le relevé ne fournit pas.
+\aecrire{Ajouter le nombre de défauts P1 et P2 au début et à la fin de la
+période (historique Coverity).}
 
 \subsubsection{Vulnérabilités des composants tiers}
-\aecrire{Présenter le nombre de composants identifiés et la répartition des
-vulnérabilités par sévérité. Souligner l'apport principal : avant la mise en
-place, l'inventaire des composants n'existait pas de manière automatisée.}
+L'analyse BDBA de l'archive RELEASE/aarch64 identifie 4 composants dont 3
+vulnérables (\texttt{cjson}, \texttt{openldap}, \texttt{hostapd}), pour 122
+vulnérabilités : 5 critiques, 19 élevées, 86 moyennes et 12 faibles
+(figure~\ref{fig:impl-bdba}). L'apport principal est l'existence même de
+cet inventaire : avant la mise en place, il n'était pas produit de manière
+automatisée, et chaque exécution le recalcule désormais.
 
 \subsubsection{Détection des régressions}
-\aecrire{Si des cas concrets de régressions détectées par la chaîne avant
-intégration sont documentés, les citer. Un exemple réel vaut mieux qu'un
-paragraphe général.}
+\aecrire{Citer, si elles existent, des régressions détectées par la chaîne
+avant intégration (par exemple un échec de compilation croisée ou un test en
+échec sur une branche de travail), avec la date et la branche.}
 
 % ===========================================================================
 \section{Discussion}
 \label{sec:eval-discussion}
 
 \subsection{Réponses aux questions d'évaluation}
-\aecrire{Reprendre QE1 à QE4 et y répondre explicitement, en s'appuyant sur
-les mesures présentées. Une réponse nuancée et argumentée est attendue.}
+
+\paragraph{QE1 --- Reproductibilité.} Réponse partielle. Les dispositifs sont en
+place (versions épinglées, image unique pour le natif et le croisé, image
+promue après validation) et les durées sont stables, mais l'identité des
+artefacts n'a pas été vérifiée.
+
+\paragraph{QE2 --- Analyses de sécurité et vélocité.} Réponse affirmative sur
+la vélocité : avec Coverity limité à une cellule de la matrice et BDBA exécuté
+en aval, la chaîne applicative reste à une médiane de 21,8 min. Sur la
+détection, la chaîne remonte 3 défauts de priorité 1, 46 de priorité 2 et 122
+vulnérabilités de composants, mais l'absence d'historique ne permet pas de
+montrer une amélioration dans le temps.
+
+\paragraph{QE3 --- Pilotage par les indicateurs.} Réponse affirmative sur le
+principe : couverture, défauts, vulnérabilités, taille d'artefact et état des
+chaînes sont collectés et affichés dans un tableau de bord commun. L'usage de
+ces indicateurs pour décider n'a pas été mesuré.
+
+\paragraph{QE4 --- Maîtrise de l'infrastructure.} Réponse partielle. Les jobs
+légers sont séparés des jobs lourds, mais la distribution est reconstruite à
+froid à chaque exécution (68,2 min, de l'ordre de 90\,\% des 30 heures
+d'exécuteur hebdomadaires estimées). La maîtrise du coût passe par un cache
+partagé qui reste à mettre en œuvre.
 
 
 \subsection{Limites}
-\aecrire{Recenser honnêtement : absence de tests sur cible matérielle réelle
-dans la chaîne, politique de blocage non appliquée sur l'analyse statique,
-exécution en superutilisateur, absence de mesure de référence antérieure pour
-certains indicateurs, période d'observation courte. Une section de limites
-solide est un marqueur de maturité, elle ne dessert pas la note.}
+
+Les limites de la solution sont les suivantes :
+\begin{itemize}[nosep]
+  \item aucun test n'est exécuté sur la cible matérielle réelle : seule la
+        compilation vise l'architecture aarch64, les tests s'exécutent sur amd64 ;
+  \item la politique de blocage n'est pas appliquée à l'analyse statique, qui
+        signale les défauts sans faire échouer l'exécution ;
+  \item les tests d'intégration Robot Framework sont désactivés par défaut et
+        limités à la cellule DEBUG/amd64 ;
+  \item le cache de la distribution n'est pas partagé ;
+  \item le conteneur de compilation s'exécute en superutilisateur, par
+        contrainte du service d'exécuteurs ;
+  \item la couverture reste faible (32,3\,\% des lignes) ;
+  \item les artefacts applicatifs portent une version fixe et un horodatage,
+        sans empreinte de commit ;
+  \item aucune mesure de référence antérieure n'existe, et la période
+        d'observation est de cinq semaines.
+\end{itemize}
 
 \subsection{Menaces à la validité}
-\aecrire{Distinguer des limites : il s'agit ici de ce qui pourrait invalider
-les conclusions. Étude de cas unique, mesures partiellement déclaratives,
-effet d'apprentissage de l'équipe concomitant.}
+
+Trois éléments pourraient invalider les conclusions. D'abord, l'étude porte sur
+un seul produit et une seule équipe, avec un service d'exécuteurs propre à
+l'entreprise. Ensuite, plusieurs évolutions de la chaîne ont eu lieu en même
+temps (refactorisation, collecte de métriques, Robot Framework), de sorte
+qu'un effet mesuré ne peut être rattaché à une seule cause, comme la baisse de
+durée de la chaîne applicative autour du 20 août. Enfin, les valeurs de
+couverture, de défauts et de vulnérabilités sont des instantanés lus dans des
+interfaces, et l'équipe a pu progresser indépendamment de la chaîne pendant la
+période.

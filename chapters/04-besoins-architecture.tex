@@ -474,148 +474,136 @@ Ces contraintes réduisent la liberté de choix technologique, mais elles laisse
 importante concernant l'intégration, la configuration et l'automatisation des outils. Les décisions prises 
 dans ce cadre sont présentées dans la section suivante.
 
-
+% ===========================================================================
 \section{Conception des évolutions de la chaîne CI/CD}
+\label{sec:bes-conception}
 
 \subsection{Principes directeurs}
+\label{ssec:bes-principes}
 
+Six principes ont guidé la conception des évolutions. Ils découlent directement
+des limites identifiées et des contraintes de l'infrastructure d'exécution.
 
+\begin{description}[style=nextline,leftmargin=0.8cm]
+  \item[P1 --- La logique réside dans des scripts, pas dans le YAML] Les
+    fichiers de workflow se limitent à l'orchestration (déclencheurs, matrices,
+    dépendances entre jobs, injection des secrets). Tout traitement non trivial
+    est placé dans le dépôt \texttt{bluebird/ci}, sous \texttt{scripts/} :
+    \texttt{cov\_build.sh} (phases capture, analyse et commit de Coverity),
+    \texttt{extract\_cov.sh} et \texttt{pyCovXtract.py} (extraction des
+    défauts), \texttt{gcov\_summary\_md.sh} et \texttt{robot\_summary\_md.py}
+    (synthèses Markdown), \texttt{BDBA\_GetReport.py} et
+    \texttt{BDBA\_ExtractMetrics.py} (analyse de composition). Les scripts
+    \texttt{build\_pm77xx-app.sh} et \texttt{build\_pm77xx-yocto.sh} servent de
+    références pour rejouer une construction en local. Ce principe répond à
+    ENF8 : un script se teste sur un poste, un fichier de workflow ne se teste
+    qu'en poussant un commit.
+  \item[P2 --- Un seul environnement de compilation] La même image de
+    conteneur, \texttt{bbbuild\_cov\_ut}, sert à la compilation native amd64 et
+    à la compilation croisée aarch64. Elle embarque la chaîne native (GCC
+    13.3.0, CMake 3.28.3), Coverity 2024.12.0 et le \gls{sdk} de la cible
+    installé dans \texttt{/usr/local/oecore-x86\_64}. Le basculement vers la
+    cible se limite à sourcer le script \texttt{environment-setup-aarch64-evo-linux}
+    du \gls{sdk} avant l'appel à CMake (ENF1, ENF2).
+  \item[P3 --- Ne publier une image qu'après l'avoir éprouvée] Une image
+    candidate est publiée sous l'étiquette \texttt{:test}, validée en lui faisant
+    construire l'application complète par la chaîne \texttt{pm77xx-app}, puis
+    seulement promue sous son étiquette définitive (EF16).
+  \item[P4 --- Des paramètres explicites, avec des valeurs par défaut sûres]
+    Chaque entrée du workflow est reprise dans une variable d'environnement
+    \texttt{INPUT\_*} munie d'une valeur par défaut, par exemple
+    \texttt{INPUT\_APP\_REPO\_BRANCH: "\$\{\{ inputs.app\_repo\_branch || 'develop' \}\}"}.
+    Les exécutions planifiées, pour lesquelles le contexte \texttt{inputs} est
+    vide, se comportent ainsi comme une exécution manuelle aux valeurs par
+    défaut (ENF9).
+  \item[P5 --- Les secrets n'existent que le temps de l'exécution] La clé de
+    service Git, les jetons Coverity, BDBA, Artifactory et VictoriaMetrics sont
+    fournis par le mécanisme \texttt{secrets} de la plateforme. Les fichiers
+    d'authentification sont écrits avec les droits \texttt{0600}, le fichier de
+    connexion Coverity (\texttt{.cov\_cnx.yml}) est supprimé dès la fin de
+    l'extraction, et la construction de l'image utilise un montage SSH éphémère
+    (ENF12 à ENF14).
+  \item[P6 --- Restituer le résultat là où le développeur regarde déjà] Chaque
+    job écrit une synthèse dans \texttt{\$GITHUB\_STEP\_SUMMARY} (tests,
+    couverture, défauts, composants vulnérables). Le développeur lit son résultat
+    dans la page du run, sans ouvrir Coverity, BDBA ou Grafana (EF8).
+\end{description}
 
-\subsection{Contraintes imposées et décisions d’intégration}
+\subsection{Contraintes imposées et décisions d'intégration}
+\label{ssec:bes-decisions}
 
+Le tableau~\ref{tab:bes-decisions} distingue, pour chaque brique, ce qui est
+imposé par l'environnement de l'entreprise et la décision d'intégration prise.
+La colonne de droite reprend les points qui relèvent de mon travail.
 
+\begin{table}[H]
+\centering
+\caption{Éléments imposés et décisions d'intégration}
+\label{tab:bes-decisions}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.3cm} X X@{}}
+\toprule
+\textbf{Brique} & \textbf{Imposé} & \textbf{Décision d'intégration} \\
+\midrule
+Orchestration & GitHub Enterprise Actions ; exécuteurs éphémères
+  \texttt{orchestrator-runner} (service RaaS) ; conteneur lancé avec
+  \texttt{-u root} &
+  Trois workflows distincts ; matrice DEBUG/RELEASE $\times$ amd64/aarch64 ;
+  \texttt{workflow\_call} pour réutiliser la chaîne applicative ; jobs légers
+  (rapports, BDBA, publication) déportés sur \texttt{ubuntu-22.04} \\
+\addlinespace
+Analyse statique & Coverity 2024.12.0 ; serveur \texttt{coverity-embu.se.com},
+  projet 10744, flux « BlueBird w1.2 » &
+  Trois phases séparées ; build instrumenté limité à DEBUG/aarch64 ;
+  \texttt{--strip-path} pour stabiliser les chemins ; vues P1 (48097) et P2
+  (48360) extraites par \texttt{pyCovXtract.py} \\
+\addlinespace
+Composition & Black Duck Binary Analysis (BDBA) &
+  Analyse de l'archive RELEASE/aarch64 uniquement ; scan par
+  \texttt{Foxy/action-bdba-scan} puis récupération du rapport et des métriques
+  par deux scripts Python via l'API \\
+\addlinespace
+Artefacts & Artifactory (\texttt{global-artifacts.se.com}) ; dépôts
+  \texttt{em-pm-generic-prod-fed} et \texttt{em-bb1.2-docker-prod-fed} &
+  Arborescence \texttt{sdp-artifacts/}, \texttt{sdk/}, \texttt{bsp-images/} ;
+  nommage \texttt{<nom>-<version>-<horodatage>} ; publication limitée à la
+  branche \texttt{main} pour l'application \\
+\addlinespace
+Distribution & Yocto, branche \texttt{scarthgap} du dépôt
+  \texttt{evo-image-config} &
+  Pilotage par kas 5.2 plutôt que par BitBake direct ; une cellule de matrice
+  par variante d'image ; génération du \gls{sdk} sur la variante de
+  développement \\
+\addlinespace
+Métriques & VictoriaMetrics (\texttt{dp.victoriametrics.dev.se.com}) ;
+  authentification Basic &
+  Action composite \texttt{upload-vm-metrics} ; deux formats d'import selon la
+  source ; étiquettes \texttt{bu}, \texttt{project}, \texttt{repo},
+  \texttt{branch}, \texttt{workflow} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Deux décisions méritent d'être explicitées.
+
+\paragraph{Où placer l'instrumentation Coverity.} Le build Coverity et le build
+de test sont deux constructions distinctes. Le build capturé par
+\texttt{cov-build} cible l'architecture livrée (aarch64) : les unités de
+compilation analysées correspondent au code qui part en production. Les tests
+et la couverture s'exécutent sur un build amd64 non instrumenté par Coverity, ce
+qui évite de superposer l'instrumentation \texttt{cov-build} et
+l'instrumentation \texttt{gcov}. Dans le workflow, les deux étapes de
+compilation sont mutuellement exclusives par une condition \texttt{if} portée
+par la matrice.
+
+\paragraph{Intégrer le \gls{sdk} dans l'image de compilation.} Le
+\gls{sdk} est produit par la chaîne Yocto, publié dans
+Artifactory, puis installé dans l'image de compilation par le
+\texttt{Dockerfile}. Les deux chaînes sont ainsi couplées par un artefact
+versionné et non par un état partagé.
 
 \subsection{Architecture cible}
-
-
-\subsection{Décomposition en chaînes}
-
-
-\section{Mise en œuvre technique}
-
-\subsection{Les chaînes CI}
-\subsection{L'infrastructure d'execution}
-\subsection{L'observabilité}
-\subsection{Bilan}
-
-
-
-
-
-------------------------------------------------------------------------------------------------------------------------------------
-
-
-\begin{table}[H]
-\centering
-\caption{Parties prenantes et attentes principales}
-\label{tab:bes-parties}
-\begin{tabularx}{\textwidth}{@{}l X@{}}
-\toprule
-\textbf{Partie prenante} & \textbf{Attente principale} \\
-\midrule
-Développeur firmware & Retour rapide et fiable sur ses modifications \\
-Responsable qualité & Couverture de test et défauts historisés \\
-Référent cybersécurité & Inventaire des composants et suivi des vulnérabilités \\
-Responsable produit & Prévisibilité des jalons de livraison \\
-Équipe DevOps & Chaîne maintenable et coût d'exécution maîtrisé \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\section{Exigences fonctionnelles}
-\label{sec:bes-exigences-f}
-
-\begin{table}[H]
-\centering
-\caption{Exigences fonctionnelles}
-\label{tab:bes-ef}
-\begin{tabularx}{\textwidth}{@{}l X l l@{}}
-\toprule
-\textbf{Réf.} & \textbf{Exigence} & \textbf{Limite} & \textbf{Priorité} \\
-\midrule
-EF1 & Fournir un environnement de compilation identique en local et en
-      intégration & L1 & Haute \\
-EF2 & Construire automatiquement l'application selon une matrice de
-      configurations & L2 & Haute \\
-EF3 & Construire automatiquement les variantes d'image de la distribution & L2 & Haute \\
-EF4 & Exécuter une analyse statique du code à chaque construction & L3 & Haute \\
-EF5 & Analyser la composition des artefacts livrables & L4 & Haute \\
-EF6 & Exécuter les tests unitaires et d'intégration et publier leurs résultats
-      & L5 & Haute \\
-EF7 & Mesurer et historiser la couverture de code & L5 & Moyenne \\
-EF8 & Publier les artefacts versionnés dans le référentiel d'entreprise & --- & Moyenne \\
-EF9 & Restituer une synthèse lisible des résultats à chaque exécution & L5 & Moyenne \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\aecrire{Vérifier que chaque exigence est (a) vérifiable et (b) rattachée à
-une limite du chapitre~2. Supprimer toute exigence non traçable.}
-
-\section{Exigences non fonctionnelles}
-\label{sec:bes-exigences-nf}
-
-\begin{table}[H]
-\centering
-\caption{Exigences non fonctionnelles}
-\label{tab:bes-enf}
-\begin{tabularx}{\textwidth}{@{}l X >{\raggedright\arraybackslash}p{5cm}@{}}
-\toprule
-\textbf{Réf.} & \textbf{Exigence} & \textbf{Critère de vérification} \\
-\midrule
-ENF1 & Reproductibilité de l'environnement de compilation & Versions épinglées, image immuable \\
-ENF2 & Durée d'une construction applicative complète & Seuil cible à fixer \\
-ENF3 & Administration de l'infrastructure par le code & Aucune action manuelle sur les machines \\
-ENF4 & Confidentialité des secrets & Aucun secret en clair dans les dépôts \\
-ENF5 & Maintenabilité de la chaîne & Logique métier dans les scripts, non dans le YAML \\
-ENF6 & Observabilité & Indicateurs collectés automatiquement et historisés \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\section{Outils imposés et décisions d'intégration}
-\label{sec:bes-choix}
-
-\aecrire{Section décisive pour la note. Chez \Entreprise, l'ingénieur ne
-choisit pas librement entre des technologies concurrentes : l'entreprise met à
-disposition un catalogue d'outils approuvés pour chaque problématique
-(plateforme CI, service d'exécuteurs, analyse statique, analyse de
-composition). La décision d'ingénierie ne porte donc pas sur le choix de
-l'outil, mais sur \emph{son intégration et sa configuration} en fonction des
-besoins réels du module. Pour chaque décision : contrainte imposée, marge de
-manœuvre laissée, décision d'intégration prise, conséquences assumées.}
-
-\subsection{Plateforme d'orchestration}
-\label{ssec:bes-choix-plateforme}
-
-\aecrire{Rappeler que le \gls{vcs} d'entreprise est GitHub Enterprise et
-qu'un service mutualisé d'exécuteurs est fourni par la DSI : ce sont des
-contraintes données, non des options comparées. Expliquer ce qui relève
-réellement d'une décision d'intégration : organisation des workflows
-réutilisables, répartition des jobs, paramétrage des exécuteurs pour les
-besoins spécifiques du module de communication (compilation croisée,
-dépôts multiples).}
-
-\subsection{Principe de conception : logique dans les scripts}
-\label{ssec:bes-choix-scripts}
-
-\aecrire{Justifier la décision de maintenir la logique dans des scripts shell
-et des cibles Make plutôt que dans les fichiers de description de workflow.
-Trois arguments : exécutabilité en local par le développeur, testabilité,
-réduction de l'adhérence à la plateforme d'orchestration. Cette décision est
-structurante et relève réellement d'un choix d'ingénierie propre à l'auteur,
-la mettre en évidence comme telle.}
-
-\subsection{Autres décisions d'intégration}
-\aecrire{Traiter de la même façon, en distinguant à chaque fois l'outil
-imposé de la décision d'intégration propre à l'auteur : conteneurisation de
-l'environnement de compilation, choix de kas plutôt qu'un pilotage direct de
-BitBake, intégration de l'analyse de composants binaires (outil du
-catalogue \Entreprise), choix d'une base de données de séries temporelles
-pour l'historisation.}
-
-\section{Architecture cible}
-\label{sec:bes-architecture}
+\label{ssec:bes-architecture}
 
 \begin{figure}[H]
 \centering
@@ -624,475 +612,835 @@ pour l'historisation.}
 \label{fig:bes-architecture}
 \end{figure}
 
-\aecrire{Figure générée depuis \texttt{ci/docs/images/workflow-diagram.puml}
-via \texttt{make figures}. Vérifier la lisibilité à l'impression et, si
-nécessaire, alléger le diagramme source plutôt que de réduire l'échelle.}
+La figure~\ref{fig:bes-architecture} montre le flux. Un déclencheur (planifié
+en jours ouvrés, manuel ou appel depuis un autre workflow) démarre un exécuteur
+éphémère. Le job récupère l'image de compilation depuis Artifactory, puis, dans
+ce conteneur, extrait trois dépôts : \texttt{bluebird/ci} (scripts),
+\texttt{pm77xx-app/sdp} (code applicatif, sous-modules inclus) et
+\texttt{pm77xx-app/automation-tests} (suites Robot Framework). Les cellules de
+la matrice compilent, analysent et testent en parallèle ; les jobs aval
+téléchargent l'archive produite, génèrent les rapports, soumettent l'archive de
+production à BDBA, la publient dans Artifactory et envoient les métriques à
+VictoriaMetrics, lues par Grafana.
 
-\aecrire{Décrire l'architecture en suivant le flux : déclencheur, allocation
-d'un exécuteur éphémère, récupération des sources, exécution dans le
-conteneur de compilation, analyses, tests, publication des artefacts,
-émission des métriques. Préciser ce qui était déjà en place à l'arrivée de
-l'auteur et ce qui a été fait évoluer. Une figure plus une page de texte
-suffisent.}
-
-\section{Décomposition en chaînes}
-\label{sec:bes-decoupage}
-
-\aecrire{Justifier la séparation en trois chaînes : construction applicative,
-construction de la distribution, publication de l'image de compilation.
-Préciser si cette séparation était déjà en place ou si elle a été introduite/
-consolidée pendant la mission. Argument principal : des rythmes et des
-durées de construction incompatibles au sein d'une même chaîne.}
-
-% ===========================================================================
-\section{Vue d'ensemble de la mise en œuvre}
-\label{sec:impl-vue-ensemble}
-
-\aecrire{Une page. Rappeler les trois chaînes et présenter le tableau
-récapitulatif ci-dessous, puis annoncer le plan de la suite du chapitre.}
+Le tableau~\ref{tab:bes-herite-evolue} précise la part héritée et la part
+apportée.
 
 \begin{table}[H]
 \centering
-\caption{Chaînes d'intégration mises en œuvre}
-\label{tab:impl-workflows}
-\begin{tabularx}{\textwidth}{@{}l X >{\raggedright\arraybackslash}p{3.6cm}@{}}
+\caption{Situation à mon arrivée et évolutions apportées}
+\label{tab:bes-herite-evolue}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.3cm} X X@{}}
 \toprule
-\textbf{Chaîne} & \textbf{Objet} & \textbf{Déclenchement} \\
+\textbf{Domaine} & \textbf{Existant} & \textbf{Évolution apportée} \\
 \midrule
-\texttt{pm77xx-app} & Construction, analyse et test de la couche applicative &
-  Planifié (jours ouvrés), manuel, ou appelé \\
-\texttt{pm77xx-yocto} & Construction des variantes d'image et du \gls{sdk} &
-  Planifié (jours ouvrés) ou manuel \\
-\texttt{publish-image} & Construction, validation et publication de l'image de
-  compilation & Manuel \\
+Compilation & Compilation de l'application &
+  Matrice DEBUG/RELEASE $\times$ native amd64 / croisée aarch64 \\
+Environnement & Image de compilation &
+  Intégration du \gls{sdk} ; optimisation du \texttt{Dockerfile} ; mise à jour des paquets \\
+Qualité & Analyse statique Coverity ; tests unitaires &
+  Couverture (\texttt{gcovr}) et synthèse ; tests d'intégration Robot Framework \\
+Sécurité & --- & Scan BDBA, rapport PDF et métriques \\
+Livraison & Construction de la distribution &
+  Publication des artefacts applicatifs, des images et du \gls{sdk} \\
+Observabilité & Résultats par exécution &
+  Action de collecte vers VictoriaMetrics ; mise à jour du tableau de bord Grafana \\
+Infrastructure & Exécuteurs éphémères &
+  Étude des solutions NFS et snapshot ; correction de scripts bash et Python \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\chiffre{Durée moyenne d'exécution de chacune des trois chaînes, à ajouter en
-colonne supplémentaire une fois les mesures collectées (chapitre~\ref{chap:evaluation}).}
+\subsection{Décomposition en chaînes}
+\label{ssec:bes-chaines}
 
-% ===========================================================================
-\section{Environnement de compilation conteneurisé}
-\label{sec:impl-conteneur}
-
-\emph{Exigences couvertes : EF1, ENF1. Sous-question : QR1.}
-
-\subsection{Objectif}
-\aecrire{Rappeler la limite L1 : divergence des environnements entre postes
-de développement et entre postes et intégration. Objectif : une image de
-conteneur unique, versionnée, servant à la fois au développeur et à la chaîne
-d'intégration.}
-
-\subsection{Composition de l'image}
-
-L'image est construite à partir d'une base Ubuntu~24.04 \gls{lts} durcie et
-maintenue en interne. L'ensemble des outils y est installé à version épinglée,
-de manière à ce que deux constructions séparées dans le temps utilisent une
-chaîne d'outils strictement identique.
+Le système comporte trois chaînes aux rythmes et aux durées différents
+(tableau~\ref{tab:bes-chaines}).
 
 \begin{table}[H]
 \centering
-\caption{Principaux composants de l'image de compilation et versions épinglées}
-\label{tab:impl-image-versions}
-\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\caption{Chaînes d'intégration}
+\label{tab:bes-chaines}
+\small
+\begin{tabularx}{\textwidth}{@{}l X p{3.2cm} l@{}}
 \toprule
-\textbf{Composant} & \textbf{Rôle} & \textbf{Version} \\
+\textbf{Chaîne} & \textbf{Objet} & \textbf{Déclenchement} & \textbf{Durée observée} \\
 \midrule
-GCC / G++ & Compilation C et C++ & 13.3.0 \\
-CMake & Système de construction applicatif & 3.28.3 \\
-Meson / Ninja & Construction de la brique de sécurité & 1.3.2 / 1.11.1 \\
-Coverity Analysis & Analyse statique & 2024.12.0 \\
-GoogleTest & Cadre de test unitaire & 1.12.1 \\
-CMocka & Simulation de dépendances en test & 1.1.7 \\
-gcovr & Mesure de couverture de code & 7.0 \\
-Doxygen / Graphviz & Génération de documentation & 1.9.8 / 2.42.2 \\
+\texttt{pm77xx-app} & Compilation, analyses, tests et publication de la couche applicative &
+  Cron \texttt{0 0 * * 1-5}, manuel, appelé & $\approx$ 23 min \\
+\texttt{pm77xx-yocto} & Cinq variantes d'image et \gls{sdk} &
+  Cron \texttt{0 22 * * 1-5}, manuel & $\approx$ 1 h 05 \\
+\texttt{publish-image} & Construction, validation et publication de l'image de compilation &
+  Manuel & $\approx$ 56 min \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\aecrire{Compléter avec les bibliothèques applicatives (cJSON, libsystemd,
-libwebsockets, libevent, libmodbus, SQLite, RapidJSON) : un tableau ou une
-énumération courte, pas les deux.}
+\emph{Durées relevées sur les runs :} \texttt{pm77xx-app} \#1316 (23 min 06 s),
+\texttt{pm77xx-yocto} \#543 (1 h 05 min 27 s), \texttt{publish-image}
+(56 min 29 s). La chaîne applicative est ordonnée à l'heure de minuit UTC et
+la chaîne Yocto à 22 h UTC : elles ne se disputent donc pas les exécuteurs.
 
-\subsection{Points de conception notables}
-
-\aecrire{Développer les points suivants, qui montrent une réflexion
-d'ingénierie et non une simple recopie de commandes.}
-
-\begin{description}[style=nextline,leftmargin=0.8cm]
-  \item[Construction multi-étapes] Les composants compilés depuis les sources
-    sont produits dans une étape intermédiaire puis copiés dans l'image
-    finale, ce qui évite d'y conserver les sources et les outils de
-    construction.
-  \item[Accès aux dépôts privés pendant la construction] La récupération de la
-    brique de cybersécurité nécessite une authentification. Un montage de
-    secret temporaire est utilisé, de sorte que la clé n'apparaisse dans
-    aucune couche de l'image finale. \aecrire{Développer : c'est un point de
-    sécurité concret, le jury peut interroger dessus.}
-  \item[Utilisateur non privilégié] L'image définit un utilisateur dédié
-    plutôt que d'exécuter en tant que superutilisateur.
-    \aecrire{Signaler honnêtement l'écart : l'exécution en intégration se fait
-    malgré tout en superutilisateur pour cause de compatibilité avec le
-    service d'exécuteurs. Expliquer pourquoi, et le reporter en perspectives.}
-\end{description}
-
-\subsection{Cycle de vie de l'image}
-\aecrire{Décrire la chaîne \texttt{publish-image} : construction, analyse du
-Dockerfile par un analyseur dédié, vérification de la présence et des versions
-des outils, validation par exécution de la chaîne applicative complète contre
-l'image candidate, puis publication sous une étiquette définitive. Insister
-sur le fait qu'une image n'est publiée qu'après avoir prouvé qu'elle
-construit le produit : c'est le point de conception intéressant.}
+La séparation s'impose pour trois raisons. Premièrement, les rythmes diffèrent :
+le code applicatif change tous les jours alors que la distribution et l'image
+de compilation évoluent rarement. Deuxièmement, les durées sont incompatibles :
+intégrer une construction Yocto à plus d'une heure dans le chemin du développeur
+dégraderait le retour d'information (ENF4). Troisièmement, les chaînes
+s'articulent par des artefacts versionnés : le \gls{sdk} sort de
+\texttt{pm77xx-yocto}, entre dans \texttt{publish-image}, et
+\texttt{publish-image} appelle \texttt{pm77xx-app} comme sous-workflow pour
+valider l'image candidate.
 
 \begin{figure}[H]
 \centering
-\aecrire{Figure : cycle de vie de l'image de compilation (construction,
-validation, publication).}
-\caption{Cycle de validation et de publication de l'image de compilation}
-\label{fig:impl-cycle-image}
+\includegraphics[width=\textwidth]{vue-global}
+\caption{Historique des exécutions de \texttt{pm77xx-app} (1\,186 exécutions, durées de 22 à 23 minutes en exécution planifiée)}
+\label{fig:bes-historique}
 \end{figure}
 
 % ===========================================================================
-\section{Chaîne de construction applicative}
+\section{Mise en œuvre technique}
+\label{sec:impl}
+
+Chaque sous-section suit la même trame : l'objectif visé, l'état de départ,
+l'évolution apportée, puis la difficulté rencontrée. Les références EF et ENF
+renvoient aux exigences de la section précédente.
+
+\subsection{Les chaînes CI}
+\label{ssec:impl-chaines}
+
+\subsubsection{Chaîne applicative \texttt{pm77xx-app}}
 \label{sec:impl-pipeline-app}
 
-\emph{Exigences couvertes : EF2, EF6, EF7, ENF5. Sous-question : QR1.}
+\emph{Exigences : EF1 à EF9, ENF4, ENF5, ENF8, ENF9.}
 
-\subsection{Déclencheurs et paramètres}
-\aecrire{Trois modes de déclenchement : planifié en jours ouvrés, manuel avec
-paramètres, et appelable depuis une autre chaîne. Expliquer pourquoi le mode
-appelable est indispensable à la validation de l'image de compilation
-(section précédente).}
+\paragraph{Paramètres.} La chaîne accepte les entrées du
+tableau~\ref{tab:impl-parametres-app} par \texttt{workflow\_dispatch} et
+\texttt{workflow\_call}. Le mode appelé existe pour la validation de l'image de
+compilation : \texttt{publish-image} appelle \texttt{pm77xx-app} en lui
+passant l'étiquette candidate \texttt{bbbuild\_cov\_ut:test}, avec
+\texttt{run\_cov\_analysis=false} pour éviter de polluer le serveur Coverity avec
+une image non validée.
 
 \begin{table}[H]
 \centering
-\caption{Paramètres d'entrée de la chaîne applicative}
+\caption{Paramètres d'entrée de \texttt{pm77xx-app}}
 \label{tab:impl-parametres-app}
+\small
 \begin{tabularx}{\textwidth}{@{}l X l@{}}
 \toprule
 \textbf{Paramètre} & \textbf{Rôle} & \textbf{Défaut} \\
 \midrule
-\texttt{app\_repo\_branch} & Branche du dépôt applicatif & \texttt{develop} \\
-\texttt{test\_repo\_branch} & Branche du dépôt de tests & \texttt{main} \\
-\texttt{builder\_img\_tag} & Étiquette de l'image de compilation & épinglée \\
-\texttt{ci\_repo\_branch} & Branche du dépôt d'intégration & \texttt{main} \\
-\texttt{run\_cov\_analysis} & Activation de l'analyse statique & \texttt{true} \\
+\texttt{app\_repo\_branch} & Branche de \texttt{pm77xx-app/sdp} & \texttt{develop} \\
+\texttt{test\_repo\_branch} & Branche de \texttt{automation-tests} & \texttt{main} \\
+\texttt{builder\_img\_tag} & Image de compilation & \texttt{bbbuild\_cov\_ut:2.3} \\
+\texttt{ci\_repo\_branch} & Branche de \texttt{bluebird/ci} & \texttt{main} \\
+\texttt{run\_cov\_analysis} & Active la capture Coverity & \texttt{true} \\
+\texttt{run\_robot\_tests} & Active les tests d'intégration & \texttt{false} \\
+\texttt{workspace\_path} & Répertoire de travail dans le conteneur & \texttt{/\_\_w/ci/ci} \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Matrice de construction}
-\label{ssec:impl-matrice}
-
-La construction est déclinée selon deux axes : le type de construction
-(\texttt{DEBUG}, \texttt{RELEASE}) et l'architecture cible (\texttt{amd64} pour
-la compilation native de validation, \texttt{aarch64} pour la compilation
-croisée destinée au produit), soit quatre combinaisons exécutées en parallèle.
-
-\aecrire{Justifier pourquoi certaines étapes ne sont exécutées que sur une
-branche de la matrice : les tests unitaires et d'intégration s'exécutent sur
-\texttt{DEBUG}/\texttt{amd64} (instrumentation de couverture et exécution
-native possible), l'analyse de composition porte sur
-\texttt{RELEASE}/\texttt{aarch64} (artefact effectivement livré). Cette
-répartition est un arbitrage coût/couverture : l'expliciter.}
+\paragraph{Matrice de construction.} La construction est déclinée selon
+\texttt{build\_type} $\in$ \{DEBUG, RELEASE\} et \texttt{compiler\_type}
+$\in$ \{amd64, aarch64\}, soit quatre cellules indépendantes
+(\texttt{fail-fast: false}), exécutées en parallèle. Le
+tableau~\ref{tab:impl-matrice-activites} répartit les activités sur ces
+cellules ; cette répartition est un arbitrage entre coût et couverture.
 
 \begin{table}[H]
 \centering
-\caption{Répartition des activités sur la matrice de construction}
+\caption{Répartition des activités sur la matrice}
 \label{tab:impl-matrice-activites}
+\small
 \begin{tabular}{@{}lcccc@{}}
 \toprule
-\textbf{Activité} & \textbf{DEBUG} & \textbf{DEBUG} & \textbf{RELEASE} & \textbf{RELEASE} \\
- & \textbf{amd64} & \textbf{aarch64} & \textbf{amd64} & \textbf{aarch64} \\
+\textbf{Activité} & \makecell{DEBUG\\amd64} & \makecell{DEBUG\\aarch64} & \makecell{RELEASE\\amd64} & \makecell{RELEASE\\aarch64} \\
 \midrule
 Compilation            & \checkmark & \checkmark & \checkmark & \checkmark \\
-Analyse statique       & \checkmark & \checkmark & --- & --- \\
-Tests unitaires        & \checkmark & --- & --- & --- \\
-Couverture de code     & \checkmark & --- & --- & --- \\
-Tests d'intégration    & \checkmark & --- & --- & --- \\
+Analyse statique       & --- & \checkmark & --- & --- \\
+Tests unitaires        & \checkmark & --- & \checkmark & --- \\
+Couverture             & \checkmark & --- & --- & --- \\
+Tests d'intégration    & \checkmark$^{*}$ & --- & --- & --- \\
 Analyse de composition & --- & --- & --- & \checkmark \\
+Publication            & --- & --- & --- & \checkmark$^{\dagger}$ \\
 \bottomrule
 \end{tabular}
+
+\smallskip
+{\footnotesize $^{*}$ si \texttt{run\_robot\_tests=true}. $^{\dagger}$ sur la branche \texttt{main} uniquement.}
 \end{table}
 
-\subsection{Séquence d'exécution}
+Les tests s'exécutent sur amd64 parce que le binaire s'exécute nativement sur
+l'exécuteur ; les cellules aarch64 ne peuvent que compiler. La couverture
+exige l'instrumentation \texttt{gcov}, donc un build DEBUG. L'analyse de
+composition porte sur RELEASE/aarch64, c'est-à-dire sur l'artefact réellement
+livré. Le listing~\ref{lst:impl-build} montre le point de bascule entre
+compilation native et croisée.
+
+\begin{lstlisting}[language=yaml,caption={Compilation native ou croisée selon la cellule de matrice},label={lst:impl-build}]
+- name: Build ${{ matrix.compiler_type }} App in ${{ matrix.build_type }} mode
+  id: build_app
+  if: ${{ env.INPUT_RUN_COV_ANALYSIS == 'false'
+       || matrix.build_type != 'DEBUG'
+       || matrix.compiler_type != 'aarch64' }}
+  run: |
+    if [ "${{ matrix.compiler_type }}" == 'aarch64' ]; then
+      . /usr/local/oecore-x86_64/environment-setup-aarch64-evo-linux
+    fi
+    cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+      -S "${{ env.SDP_ROOT }}" \
+      -B "${{ env.SDP_ROOT }}/${{ matrix.build_type }}-build.${{ matrix.compiler_type }}"
+    cmake --build "..." --parallel
+\end{lstlisting}
+
+La condition \texttt{if} rend cette étape exclusive de l'étape
+\texttt{cov\_build\_app}, qui porte la condition inverse. Le répertoire de
+build est suffixé par la configuration (\texttt{DEBUG-build.aarch64}), ce qui
+évite toute collision entre cellules.
+
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{pm77xx-app-workflow}
-\caption{Diagramme d'activité de la chaîne de construction applicative}
+\includegraphics[width=0.95\textwidth]{workflow-pm77xx-app}
+\caption{Exécution de \texttt{pm77xx-app} (\#1316) : matrice de construction et jobs aval}
 \label{fig:impl-activite-app}
 \end{figure}
 
-\aecrire{Commenter la figure en suivant le flux d'exécution. Une figure non
-commentée dans le texte est considérée comme absente.}
+La figure~\ref{fig:impl-activite-app} se lit de gauche à droite. Le job
+\emph{Show Input Parameters} (0 s) écrit les paramètres dans la synthèse. Les
+quatre cellules de la matrice démarrent ensuite : la cellule DEBUG/amd64 dure
+19 min 28 s, contre 4 min 55 s à 5 min 17 s pour les trois autres ; elle
+cumule la compilation instrumentée, les tests, la couverture et, si activés,
+les tests d'intégration, et constitue donc le chemin critique des 23 min 06 s
+de l'exécution. Les jobs aval (couverture 26 s, BDBA 56 s, publication 25 s,
+rapports de test 28 s et 24 s) sont déclenchés dès la fin de la matrice
+(\texttt{needs: build-scan-test}).
 
-\subsection{Gestion des dépôts multiples et des sous-modules}
-\aecrire{Difficulté concrète à développer : le code applicatif est réparti sur
-un dépôt principal et de nombreux sous-modules privés. Expliquer le mécanisme
-d'authentification retenu par clé de service et son incidence sur la durée de
-récupération des sources.}
+\paragraph{Difficulté : clonage multi-dépôts.} Le code est réparti entre un
+dépôt principal et de nombreux sous-modules privés. Le checkout utilise
+\texttt{submodules: recursive} avec la clé de service \texttt{GIT\_SRV\_SSH\_KEY}
+et \texttt{persist-credentials: false}, de sorte que la clé ne reste pas dans
+la configuration Git du répertoire de travail.
 
-\begin{lstlisting}[language=yaml,caption={Extrait : récupération des sources
-  et exécution dans le conteneur de compilation},label={lst:impl-checkout}]
-# TODO : coller ici l'extrait réel du workflow, réduit aux lignes utiles.
-# Règle : un listing ne doit jamais dépasser une demi-page. Au-delà,
-# le mettre en annexe A et n'en citer que la référence.
+\subsubsection{Tests unitaires et couverture}
+\label{ssec:impl-ut}
+
+\emph{Exigences : EF5, EF7, EF8.}
+
+\paragraph{Tests unitaires.} Les tests sont lancés par \texttt{ctest}, avec
+export JUnit pour la publication, et excluent la suite \texttt{mcu\_unit\_tests},
+destinée au cœur temps réel et inexécutable sur l'hôte :
+
+\begin{lstlisting}[language=bash,caption={Exécution des tests unitaires},label={lst:impl-ctest}]
+SDP_ROOT="$SDP_ROOT" ctest \
+  --test-dir "$SDP_ROOT/${BUILD_TYPE}-build.${ARCH}" \
+  --exclude-regex "mcu_unit_tests" \
+  --output-on-failure \
+  --output-junit "$SDP_ROOT/${BUILD_TYPE}-build.${ARCH}/test_results.xml"
 \end{lstlisting}
 
-\subsection{Difficultés rencontrées}
-\aecrire{Les documenter explicitement. Pistes déjà identifiées dans la
-documentation existante : nettoyage des services en fin d'exécution supposant
-des répertoires absents sur un exécuteur neuf, gestion du délai d'attente au
-démarrage des services, exclusion des tests destinés au cœur temps réel qui
-ne peuvent pas s'exécuter sur l'hôte.}
+L'étape est bornée par \texttt{timeout-minutes: 1} : un test qui ne rend jamais
+la main ne doit pas immobiliser l'exécuteur jusqu'à la limite globale. Le job \texttt{test-reports} publie ensuite les
+résultats avec l'action \texttt{EnricoMi/publish-unit-test-result-action}
+(13 tests réussis sur 13 dans l'exécution \#1316).
 
-% ===========================================================================
-\section{Chaîne de construction de la distribution embarquée}
-\label{sec:impl-pipeline-yocto}
+\paragraph{Couverture.} La couverture est mesurée avec \texttt{gcovr} sur la
+seule cellule DEBUG/amd64 :
 
-\emph{Exigence couverte : EF3. Sous-question : QR1.}
+\begin{lstlisting}[language=bash,caption={Mesure de couverture},label={lst:impl-gcovr}]
+gcovr --root "$SDP_ROOT" --object-directory . \
+  --exclude '.*/test/.*' \
+  --gcov-ignore-parse-errors=negative_hits.warn \
+  --html-details coverage/gcov.html \
+  --lcov coverage/gcov.info \
+  --json coverage/gcov.json \
+  --json-summary coverage/gcov-summary.json \
+  --print-summary | tee coverage/gcov-summary.txt
+\end{lstlisting}
 
-\subsection{Organisation de la configuration}
-La configuration de construction est décrite de manière déclarative avec kas et
-structurée en trois niveaux : la carte cible, le projet d'image, et les options
-de construction.
+Trois choix sont à relever. L'option
+\texttt{--gcov-ignore-parse-errors=negative\_hits.warn} dégrade en avertissement
+les compteurs d'exécution négatifs produits par \texttt{gcov}, qui, sans cette
+option, interrompent la génération du rapport. Les quatre formats de sortie répondent à quatre usages : HTML pour la
+lecture, LCOV pour les outils tiers, JSON pour l'exploitation, texte pour la
+synthèse. Enfin, le pourcentage de lignes est extrait par un filtre
+\texttt{awk} sur la ligne \texttt{lines:} du résumé pour alimenter
+VictoriaMetrics.
 
-\aecrire{Décrire les niveaux : fichier de carte définissant la machine
-\texttt{\Carte}, fichiers de projet définissant la distribution et la cible
-d'image, fichiers d'option pour la génération du \gls{sdk} et les réglages
-d'intégration.}
-
-\subsection{Variantes d'image}
-\begin{table}[H]
-\centering
-\caption{Variantes d'image produites}
-\label{tab:impl-variantes}
-\begin{tabularx}{\textwidth}{@{}l X@{}}
-\toprule
-\textbf{Variante} & \textbf{Usage} \\
-\midrule
-\texttt{dev} & Image de développement, outils de débogage inclus \\
-\texttt{hwtest} & Validation matérielle en production \\
-\texttt{netboot} & Démarrage par le réseau (initramfs) \\
-\texttt{rescue} & Image de secours (initramfs) \\
-\texttt{prod} & Image de production, noyau optimisé pour le temps de démarrage \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\subsection{Maîtrise du temps de construction}
-\label{ssec:impl-cache}
-
-\aecrire{Section à fort contenu technique, à soigner. Expliquer le mécanisme
-du cache d'état partagé et du cache de téléchargement, leur mutualisation
-entre exécutions, et le réglage du parallélisme. Fournir la mesure comparative
-avec et sans cache : c'est l'un des résultats les plus parlants du
-chapitre~6.}
-
-\chiffre{Durée de construction à froid et à chaud, par variante d'image.}
-
-\subsection{Génération et publication du kit de développement}
-\aecrire{Expliquer que le \gls{sdk} généré pour la variante de développement
-est publié dans le référentiel d'artefacts, ce qui permet aux développeurs
-applicatifs de compiler pour la cible sans reconstruire la distribution.
-C'est un apport concret à l'équipe : le mettre en valeur.}
-
-\subsection{Construction des paquets du banc de test}
-\aecrire{Décrire la construction séparée des paquets destinés à
-l'orchestrateur du banc de test matériel, sur une base distincte de la cible
-embarquée.}
-
-% ===========================================================================
-\section{Qualité logicielle : tests et couverture}
-\label{sec:impl-qualite}
-
-\emph{Exigences couvertes : EF6, EF7, EF9.}
-
-\subsection{Tests unitaires}
-\aecrire{Décrire l'exécution des tests unitaires via le lanceur de CMake,
-l'exclusion des tests destinés au cœur temps réel, et l'instrumentation de
-couverture activée en construction de débogage.}
-
-\subsection{Tests d'intégration}
-Les tests d'intégration sont écrits avec Robot Framework et organisés en suites
-correspondant aux domaines fonctionnels : gestion administrative et système,
-gestion des équipements, gestion des défauts, notifications, et interfaces nord
-Modbus, BACnet et \gls{edm}.
-
-\aecrire{Décrire la séquence : démarrage des services applicatifs dans le
-conteneur, attente de disponibilité, exécution des suites, arrêt des services,
-collecte des rapports. Souligner la difficulté principale : exécuter un
-ensemble de services système dans un conteneur sans gestionnaire de services
-complet.}
-
-\subsection{Restitution des résultats}
-\aecrire{Décrire la génération automatique d'une synthèse en Markdown injectée
-dans le rapport d'exécution : indicateur visuel de taux de réussite, tableau
-des compteurs, liste des tests en échec. Même principe pour la couverture, avec
-des seuils configurables. Argument à défendre : un résultat qui n'est pas lu
-n'a aucune valeur ; la restitution fait partie de la conception, pas de la
-cosmétique.}
+\texttt{gcov\_summary\_md.sh} convertit le résumé en tableau Markdown avec
+badge et statut par métrique, selon deux seuils (50 \% et 75 \%). Sur le run
+\#1316, la couverture est de 32,3 \% des lignes (19\,308 / 59\,772), 20,9 \% des
+fonctions (1\,511 / 7\,216) et 29,6 \% des branches (5\,559 / 18\,775) ; les trois
+indicateurs sont sous le seuil bas. La chaîne rend donc visible un niveau de
+couverture faible plutôt que de le masquer.
 
 \begin{figure}[H]
 \centering
-\aecrire{Capture d'écran de la synthèse d'exécution. Sources disponibles :
-\texttt{ci/docs/images/UTReports.png}, \texttt{ci/docs/images/buildArtifacts.png}.}
-\caption{Synthèse automatique des résultats de test publiée à chaque exécution}
-\label{fig:impl-synthese-tests}
+\includegraphics[width=0.75\textwidth]{summary-pm77xx-app}
+\caption{Synthèse d'exécution : défauts Coverity, tests, couverture et BDBA}
+\label{fig:impl-synthese}
 \end{figure}
 
-% ===========================================================================
-\section{Sécurité : analyse statique et analyse de composition}
-\label{sec:impl-securite}
+\paragraph{Difficulté : chemins d'artefacts.} \texttt{upload-artifact} conserve
+l'arborescence absolue du conteneur. Le job \texttt{ut-coverage-reports}, qui
+s'exécute dans une autre image, doit donc retrouver les fichiers sous
+\texttt{./build-amd64/\_\_w/ci/ci/pm77xx/pm77xx-app/sdp/DEBUG-build.amd64}.
+Ce chemin est centralisé dans une variable \texttt{BUILD\_PATH} pour limiter sa
+duplication.
 
-\emph{Exigences couvertes : EF4, EF5. Sous-question : QR2.}
+\subsubsection{Tests d'intégration Robot Framework}
+\label{ssec:impl-robot}
 
-\subsection{Analyse statique}
-L'analyse statique est réalisée en trois phases distinctes : la capture, qui
-instrumente la construction et enregistre les unités de compilation ; l'analyse
-proprement dite, qui applique les vérificateurs ; et la remontée des résultats
-vers le serveur d'analyse.
+\emph{Exigence : EF6.}
 
-\aecrire{Justifier le découpage en trois phases et son intérêt en intégration
-continue. Détailler la configuration : activation de l'ensemble des
-vérificateurs, y compris les vérificateurs de sécurité de la famille C,
-résolution des appels virtuels et des pointeurs de fonction, normalisation des
-chemins pour que les défauts restent corrélables d'une exécution à l'autre
-malgré des répertoires de travail éphémères. Ce dernier point est une
-difficulté réelle propre aux exécuteurs jetables : la mettre en avant.}
+Les suites Robot Framework du dépôt \texttt{automation-tests} exercent les
+services applicatifs. Leur exécution est un ajout récent. Elle est désactivée par
+défaut (\texttt{run\_robot\_tests=false}) et ne concerne que la cellule
+DEBUG/amd64, car le lanceur de services attend les binaires de l'arborescence
+x86\_64/DEBUG. La séquence, entièrement conditionnée à \texttt{steps.launch\_sdp.outcome}, est la suivante :
 
-\begin{lstlisting}[language=yaml,caption={Extrait de la configuration
-  d'analyse statique},label={lst:impl-cov-config}]
-# TODO : coller l'extrait réel (phases capture / analyze / commit).
+\begin{enumerate}[nosep]
+  \item \texttt{cmake --install} copie configuration, scripts de migration de base
+        de données et certificats sous \texttt{/opt/app-ext/sdp} ;
+  \item \texttt{sdp.launch.in.container.sh} démarre les services en arrière-plan
+        (\texttt{timeout-minutes: 5}) ;
+  \item \texttt{robot} produit \texttt{output.xml}, \texttt{log.html},
+        \texttt{report.html} et \texttt{xunit.xml} ;
+  \item \texttt{sdp.launch.in.container.sh --kill} arrête les services dans une
+        étape \texttt{if: always()}, même si les tests ont échoué ;
+  \item \texttt{robot\_summary\_md.py} écrit la synthèse (badge de taux de
+        réussite, compteurs, 50 échecs listés au plus) dans le résumé du run.
+\end{enumerate}
+
+La difficulté principale est d'exécuter un ensemble de services système
+(\texttt{dbus}, services dépendant de \texttt{libsystemd}) dans un conteneur sans
+gestionnaire de services complet. Le lanceur démarre donc chaque service
+lui-même et la garde de 5 minutes protège contre un service qui resterait au
+premier plan.
+
+\subsubsection{Analyse statique Coverity}
+\label{ssec:impl-coverity}
+
+\emph{Exigence : EF3.}
+
+Coverity préexistait ; mon travail a porté sur la fiabilisation des scripts et
+sur la restitution. L'analyse suit trois phases pilotées par
+\texttt{cov\_build.sh \{capture|analyze|commit\}}, chacune dans une étape
+distincte afin d'isoler les échecs et de mesurer chaque durée. La configuration
+\texttt{scripts/coverity\_ci.yaml} active tous les vérificateurs, y compris la
+famille de sécurité C :
+
+\begin{lstlisting}[language=yaml,caption={Configuration Coverity},label={lst:impl-cov-config}]
+capture:
+  build:
+    cov-build-args: [--parallel-translate=4]
+analyze:
+  c-cpp-virtual: true
+  c-cpp-fnptr: true
+  checkers: { all: true, rule: true, c-family-security: true }
+  cov-analyze-args:
+    - --strip-path
+    - /__w/ci/ci/pm77xx/pm77xx-app/
+commit:
+  connect:
+    stream: "BlueBird w1.2"
+    url: "https://coverity-embu.se.com"
 \end{lstlisting}
 
-\subsubsection{Restitution ciblée des défauts}
-\aecrire{Décrire le filtrage par vues de priorité 1 et 2, restreintes au code
-écrit par l'équipe à l'exclusion des composants tiers. Expliquer le client
-d'extraction développé : interrogation de l'interface de programmation du
-serveur, attente de fin d'analyse, mise en forme des résultats en rapport
-consultable. Justifier le développement de cet outil plutôt que l'usage de
-l'interface web : l'objectif est que le développeur voie les défauts sans
-quitter son rapport d'exécution.}
+\texttt{c-cpp-virtual} et \texttt{c-cpp-fnptr} résolvent les appels virtuels
+et les pointeurs de fonction, nombreux dans le code applicatif.
+\texttt{--strip-path} supprime le préfixe du répertoire de travail afin que
+l'identité d'un défaut (fichier, fonction, type) reste stable d'un run à l'autre
+malgré des exécuteurs éphémères (ENF20). Sans lui, un même défaut serait
+compté comme nouveau à chaque modification du chemin.
 
-\subsubsection{Politique de blocage}
-\aecrire{Point de discussion à traiter honnêtement. Situation actuelle : la
-détection de défauts n'interrompt pas l'exécution, seule une défaillance de
-construction ou de connexion au serveur le fait. Justifier ce choix par la
-dette initiale, puis proposer la trajectoire cible : blocage sur les défauts
-nouvellement introduits uniquement. Cette lucidité sera mieux notée qu'une
-présentation idéalisée.}
+\paragraph{Restitution ciblée.} \texttt{extract\_cov.sh} interroge, pour chaque
+vue (P1 : 48097, P2 : 48360), l'API REST
+\texttt{/api/v2/streams/viewContents/\{viewid\}} via \texttt{pyCovXtract.py},
+génère les rapports \texttt{coverity\_report\_<run>\_P1.html} et
+\texttt{\_P2.html}, et expose \texttt{cov\_p1\_issue\_nbr},
+\texttt{cov\_p2\_issue\_nbr} et \texttt{cov\_total\_issue\_nbr} dans
+\texttt{GITHUB\_OUTPUT}. Sur le run \#1316 : 3 défauts P1 et 46 défauts P2.
 
-\subsection{Analyse de composition des artefacts}
-\aecrire{Décrire la soumission de l'artefact de production à l'analyseur de
-composants binaires, l'attente du résultat, la récupération du rapport et
-l'extraction des indicateurs : nombre de composants identifiés, nombre de
-composants porteurs de vulnérabilités, répartition des vulnérabilités par
-sévérité. Relier explicitement aux obligations de nomenclature logicielle
-présentées en section~\ref{sec:art-supply-chain}.}
+\paragraph{Politique de blocage.} Le script retourne 1 lorsque des défauts sont
+trouvés. L'étape l'invoque avec \texttt{|| true}, car un code de sortie non nul
+colorait l'étape en rouge alors que le résultat est déjà exposé dans la
+synthèse. Seuls un échec de capture, d'analyse ou de connexion fait donc échouer
+le job. Ce choix est assumé : avec une dette initiale de 46 défauts P2, un
+blocage immédiat paralyserait l'équipe. La trajectoire cible est un blocage sur
+les défauts nouvellement introduits uniquement, ce que l'option \texttt{--diff}
+de \texttt{pyCovXtract.py} permettrait de calculer.
+
+\subsubsection{Analyse de composition BDBA}
+\label{ssec:impl-bdba}
+
+\emph{Exigence : EF4.}
+
+Le job \texttt{scan-bdba} télécharge l'archive RELEASE/aarch64 puis enchaîne
+trois étapes :
+
+\begin{enumerate}[nosep]
+  \item soumission par \texttt{Foxy/action-bdba-scan@v1.1.1}
+        (\texttt{delete-binary: true}, produit \texttt{pm77xx-app} version 1.0.0) ;
+  \item \texttt{BDBA\_GetReport.py} interroge \texttt{/api/product/\{id\}/} toutes
+        les 30 s jusqu'au statut \texttt{R} (délai maximal de 600 s) puis télécharge
+        le rapport PDF ;
+  \item \texttt{BDBA\_ExtractMetrics.py} produit un fichier JSON Lines au format
+        d'import VictoriaMetrics, et expose les compteurs
+        \texttt{bdba\_components\_total}, \texttt{bdba\_components\_vuln},
+        \texttt{bdba\_vulns\_total}, \texttt{bdba\_vulns\_critical},
+        \texttt{bdba\_vulns\_high}, \texttt{bdba\_vulns\_medium},
+        \texttt{bdba\_vulns\_low}.
+\end{enumerate}
+
+Le tableau~\ref{tab:impl-bdba-metriques} définit les indicateurs. Sur
+l'exécution capturée (figure~\ref{fig:impl-bdba}), BDBA identifie 4 composants
+dont 3 vulnérables (\texttt{cjson}, \texttt{openldap}, \texttt{hostapd}) pour
+122 vulnérabilités : 5 critiques, 19 élevées, 86 moyennes et 12 faibles.
 
 \begin{table}[H]
 \centering
 \caption{Indicateurs extraits de l'analyse de composition}
 \label{tab:impl-bdba-metriques}
+\small
 \begin{tabularx}{\textwidth}{@{}l X@{}}
 \toprule
 \textbf{Indicateur} & \textbf{Définition} \\
 \midrule
-Composants identifiés & Nombre total de composants tiers détectés dans l'artefact \\
-Composants vulnérables & Composants pour lesquels au moins une vulnérabilité est connue \\
-Vulnérabilités par sévérité & Répartition critique / élevée / moyenne / faible \\
+\texttt{bdba\_component} & Composants tiers détectés, étiquetés \texttt{vulnerable} ou \texttt{clean} \\
+\texttt{bdba\_vulns} & Vulnérabilités connues, étiquetées par sévérité \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Gestion des secrets}
-\aecrire{Recenser les secrets nécessaires (clé de service Git, jetons
-d'authentification aux serveurs d'analyse, jeton du référentiel d'artefacts) et
-décrire leur mode d'injection ainsi que les précautions prises pour éviter
-toute divulgation dans les journaux d'exécution. Couvre ENF4.}
-
-% ===========================================================================
-\section{Infrastructure d'exécution}
-\label{sec:impl-runners}
-
-\emph{Exigence couverte : ENF3. Sous-question : QR4.}
-
-\subsection{Modèle d'exécuteurs éphémères}
-\aecrire{Décrire le service mutualisé d'exécuteurs : allocation d'une machine
-neuve par exécution, destruction en fin d'exécution. Détailler les
-conséquences de conception : aucun cache local persistant, durée de
-récupération des sources et de l'image à chaque exécution, chemins de travail
-variables. Relier au problème de normalisation des chemins évoqué en
-section~\ref{sec:impl-securite}.}
-
-\subsection{Description de l'infrastructure en code}
-\aecrire{Décrire les éléments décrits en Terraform : réservation d'adresses
-réseau fixes pour les besoins de filtrage vers les serveurs internes, rôles
-d'accès au fournisseur cloud, politiques d'autorisation par dépôt. Décrire le
-processus de modification : proposition de changement, validation automatique
-des politiques, application après fusion.}
-
-\begin{lstlisting}[language=hcl,caption={Extrait de la description
-  d'infrastructure},label={lst:impl-terraform}]
-# TODO : coller un extrait représentatif, anonymisé.
-\end{lstlisting}
-
-\subsection{Considérations de sécurité}
-\aecrire{Traiter : isolation entre exécutions, portée minimale des jetons,
-absence de persistance, risque lié à l'exécution en superutilisateur signalé
-en section~\ref{sec:impl-conteneur}.}
-
-% ===========================================================================
-\section{Observabilité de la chaîne}
-\label{sec:impl-observabilite}
-
-\emph{Exigences couvertes : EF9, ENF6. Sous-question : QR3.}
-
-\subsection{Motivation}
-\aecrire{Une synthèse par exécution ne permet pas de percevoir une tendance.
-L'objectif est de conserver l'historique des indicateurs pour piloter
-l'évolution de la qualité, et non seulement constater l'état d'une exécution.}
-
-\subsection{Chaîne de collecte}
 \begin{figure}[H]
 \centering
-\aecrire{Figure : chaîne exécution $\rightarrow$ exportateur $\rightarrow$
-base de séries temporelles $\rightarrow$ tableaux de bord.}
-\caption{Chaîne de collecte et de restitution des indicateurs}
-\label{fig:impl-observabilite}
+\includegraphics[width=0.7\textwidth]{rapport-bdba}
+\caption{Rapport BDBA de l'archive \texttt{pm77xx-app} (RELEASE/aarch64)}
+\label{fig:impl-bdba}
 \end{figure}
 
-\aecrire{Décrire la production des indicateurs au format d'import de la base
-de séries temporelles, leur envoi, et leur restitution sous forme de tableaux
-de bord. Préciser le déploiement : conteneurs orchestrés, chart de
-déploiement, gestion chiffrée des secrets, exposition avec certificat
-d'entreprise.}
+Cette analyse alimente l'inventaire des composants que les obligations de
+nomenclature logicielle exigent (section~\ref{sec:art-supply-chain}).
 
-\subsection{Indicateurs retenus}
+\subsubsection{Publication des artefacts applicatifs}
+\label{ssec:impl-publication-app}
+
+\emph{Exigence : EF9.}
+
+Chaque cellule empaquette son résultat avant de le publier :
+\texttt{DESTDIR=/tmp/staging cmake --install} installe dans une arborescence
+temporaire, puis \texttt{tar -czf} archive \texttt{lib} et \texttt{bin} depuis
+\texttt{/opt/app-ext/sdp}. L'archive est conservée comme artefact de run
+(\texttt{<BUILD>-build-<ARCH>}). Pour la branche \texttt{main}, le job
+\texttt{upload-artifact} publie l'archive RELEASE/aarch64 dans Artifactory par
+\texttt{jf rt upload} sous
+\texttt{em-pm-generic-prod-fed/sdp-artifacts/pm77xx-app-artifact-<version>-<horodatage>.tar.gz}.
+La taille de l'archive est aussi mesurée (\texttt{du -cb}) et envoyée comme
+métrique \texttt{sdp\_artifact\_size} (78,0 Mo sur la capture du tableau de bord).
+
+\emph{Limite :} la version \texttt{ARTIFACT\_VERSION} est fixée à \texttt{0.0.1} ;
+seul l'horodatage distingue deux artefacts, et le nom ne contient ni
+l'empreinte du commit ni la version de l'image de compilation. L'exigence EF9
+n'est donc que partiellement couverte.
+
+\subsubsection{Chaîne de la distribution \texttt{pm77xx-yocto}}
+\label{sec:impl-pipeline-yocto}
+
+\emph{Exigences : EF10 à EF13, ENF6.}
+
+La configuration est décrite avec kas 5.2 en trois niveaux, composés dans la
+ligne de commande par des « : » :
+
+\begin{lstlisting}[language=bash,caption={Appels kas : image et SDK},label={lst:impl-kas}]
+kas build kas/board/ti/bru99379-kp0.yml:kas/project/image-evo-dev.yml
+kas build kas/board/ti/bru99379-kp0.yml:kas/project/image-evo-dev.yml:\
+         kas/project/option/populate-sdk.yml
+\end{lstlisting}
+
+Le premier niveau décrit la carte (machine \texttt{bru99379-kp0}), le second
+le projet d'image, le troisième des options, dont \texttt{populate-sdk.yml}.
+Pour la variante de production, le fichier de carte est suffixé
+(\texttt{bru99379-kp0-prod.yml}) grâce à l'entrée \texttt{include} de la matrice.
+Les cinq variantes (tableau~\ref{tab:impl-variantes}) sont construites en
+parallèle.
+
 \begin{table}[H]
 \centering
-\caption{Indicateurs collectés et historisés}
-\label{tab:impl-indicateurs}
-\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\caption{Variantes d'image produites}
+\label{tab:impl-variantes}
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
 \toprule
-\textbf{Famille} & \textbf{Indicateur} & \textbf{Source} \\
+\textbf{Variante} & \textbf{Usage} \\
 \midrule
-Construction & Durée, issue, fréquence & Plateforme d'orchestration \\
-Test & Tests exécutés, réussis, en échec & Rapports de test \\
-Couverture & Lignes, fonctions, branches & Outil de couverture \\
-Analyse statique & Défauts de priorité 1 et 2 & Serveur d'analyse \\
-Composition & Composants et vulnérabilités par sévérité & Analyseur binaire \\
+\texttt{image-evo-dev} & Développement, outils de débogage ; sert aussi à générer le \gls{sdk} \\
+\texttt{image-evo-hwtest} & Validation matérielle en production \\
+\texttt{image-evo-netboot} & Démarrage réseau (initramfs) \\
+\texttt{image-evo-rescue} & Image de secours (initramfs) \\
+\texttt{image-evo-prod} & Production \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{Synthèse du chapitre}
-\label{sec:impl-synthese}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{workflow-pm77xx-yocto}
+\caption{Exécution de \texttt{pm77xx-yocto} (\#543, 1 h 05 min 27 s)}
+\label{fig:impl-yocto}
+\end{figure}
 
-\aecrire{Reprendre le tableau des exigences de la section~\ref{sec:bes-exigences-f}
-et indiquer pour chacune la section qui la couvre et son état : couverte,
-partiellement couverte, non couverte. Assumer les exigences non couvertes,
-elles alimentent les perspectives.}
+\paragraph{Difficulté : BitBake refuse de s'exécuter en root.} Le conteneur
+est imposé en root par l'infrastructure (section~\ref{ssec:impl-runners}), or
+BitBake refuse de s'exécuter sous cet utilisateur. Le workflow écrit donc la clé
+SSH sous \texttt{/home/user/.ssh}, transfère la propriété du répertoire de
+travail à \texttt{user} (\texttt{chown -R}), déclare le dépôt en
+\texttt{safe.directory} puis lance \texttt{kas} par \texttt{su user -c}.
+
+\paragraph{Publication.} Après la construction, le \gls{sdk} est localisé par
+\texttt{find build/*tmp*/deploy/sdk -name '*-toolchain-*.sh'} puis publié dans
+\texttt{sdk/} ; les variantes \texttt{dev} et \texttt{prod} sont archivées
+(\texttt{find -type f | tar --transform 's|.*/||'} met tous les fichiers à la racine de
+l'archive) et publiées dans \texttt{bsp-images/}. Pour la variante dev, une
+archive « flashable » regroupe \texttt{deploy/images} et le fichier machine
+\texttt{bru99379-kp0.conf} dans \texttt{bsp-images/standalone-flashing-images/}.
+Un développeur applicatif obtient ainsi un compilateur croisé et une image de
+référence sans reconstruire la distribution.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{jfrog-artifactory}
+\caption{Organisation du dépôt Artifactory \texttt{em-pm-generic-prod-fed}}
+\label{fig:impl-artifactory}
+\end{figure}
+
+\subsubsection{Chaîne de l'image de compilation \texttt{publish-image}}
+\label{sec:impl-conteneur}
+
+\emph{Exigences : EF14 à EF17, ENF1, ENF2, ENF12.}
+
+\paragraph{Construction du \texttt{Dockerfile}.} L'image est construite en trois
+étages à partir d'une image Ubuntu 24.04 (\texttt{se-ubuntu-noble:3.0.1}) :
+\texttt{compiler} (paquets et compilateurs), \texttt{cov-sdk\_builder}
+(Coverity et \gls{sdk}) et \texttt{app\_builder} (image finale). Seul le contenu
+utile est copié dans l'étage final (\texttt{COPY --from=cov-sdk\_builder}), de sorte que l'archive
+Coverity et l'installateur du \gls{sdk} n'alourdissent pas l'image.
+
+\begin{table}[H]
+\centering
+\caption{Principaux composants de l'image et versions épinglées}
+\label{tab:impl-image-versions}
+\small
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Composant} & \textbf{Rôle} & \textbf{Version} \\
+\midrule
+GCC / G++ & Compilation C et C++ & 13.3.0-6ubuntu2\textasciitilde 24.04.1 \\
+CMake & Système de construction & 3.28.3-1build7 \\
+Meson / Ninja & Brique de cybersécurité (csb-app) & 1.3.2 / 1.11.1 \\
+Coverity Analysis & Analyse statique & 2024.12.0 \\
+GoogleTest / GMock & Tests unitaires & 1.14.0-1 \\
+CMocka & Doublures de dépendances & 1.1.7-3 \\
+gcovr & Couverture & 7.0-1 \\
+Doxygen / Graphviz & Documentation & 1.9.8 / 2.42.2 \\
+Python & Scripts d'intégration continue & 3.12.3 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Les optimisations apportées sont les suivantes :
+
+\begin{itemize}[nosep]
+  \item versions épinglées par paquet (\texttt{cmake=3.28.3-1build7}), pour que deux
+        constructions séparées dans le temps utilisent la même chaîne d'outils (ENF1) ;
+  \item \texttt{--no-install-recommends}, qui évite l'installation de paquets non demandés ;
+  \item caches BuildKit \texttt{--mount=type=cache,target=/var/cache/apt} et
+        \texttt{/var/lib/apt} (\texttt{sharing=locked}) : les paquets déjà téléchargés
+        sont réutilisés d'une construction à l'autre sans rester dans une couche ;
+  \item construction multi-étages, décrite plus haut.
+\end{itemize}
+
+\paragraph{Accès aux dépôts privés.} La brique de cybersécurité \texttt{csb-app}
+(version \texttt{Release\_csbApp\_2.6.0}) est clonée et compilée avec Meson dans
+l'image. Le clonage utilise \texttt{RUN --mount=type=ssh}, alimenté par
+\texttt{docker build --ssh default} : la clé reste dans l'agent SSH de l'hôte et
+n'est écrite dans aucune couche de l'image.
+
+\begin{lstlisting}[language=docker,caption={Installation du SDK et clonage sécurisé},label={lst:impl-dockerfile}]
+COPY ./resources/*sdk-installer*.sh ${SDK_PATH}/sdk-installer.sh
+RUN chmod +x sdk-installer.sh \
+    && ./sdk-installer.sh -d /usr/local/oecore-x86_64 -y
+
+RUN --mount=type=ssh \
+    ssh-keyscan github.schneider-electric.com >> /root/.ssh/known_hosts \
+    && git clone --branch Release_csbApp_2.6.0 \
+       git@github.schneider-electric.com:edge-os-critical/csb-app.git csb-app
+\end{lstlisting}
+
+L'image définit l'utilisateur \texttt{user}, mais son exécution en
+intégration se fait en root (\texttt{options: -u root}) pour des raisons de
+droits d'écriture imposées par RaaS ; ce point est reporté en perspectives.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{workflow-image-docker}
+\caption{Exécution de \texttt{publish-image} : construction, contrôles, validation, publication}
+\label{fig:impl-cycle-image}
+\end{figure}
+
+\paragraph{Cycle de validation.} La figure~\ref{fig:impl-cycle-image} détaille
+l'enchaînement :
+\begin{enumerate}[nosep]
+  \item \texttt{build\_builder\_image} (11 min 08 s) construit avec
+        \texttt{DOCKER\_BUILDKIT=1 docker build --ssh default --build-arg COV\_VERSION=2024.12.0}
+        et pousse l'image \texttt{:test} ;
+  \item \texttt{lint\_dockerfile} exécute \texttt{hadolint}, et \texttt{Check Image}
+        (3 min 20 s) lance \texttt{display\_version.sh} dans l'image pour vérifier la
+        présence et les versions des outils (EF15) ;
+  \item \emph{Image Validation} appelle \texttt{pm77xx-app} avec
+        \texttt{builder\_img\_tag=bbbuild\_cov\_ut:test} : quatre cellules de
+        compilation, rapports de test, couverture et BDBA ;
+  \item \emph{Image Publication} (28 min 09 s) revérifie l'étiquette, republie
+        l'image sous son étiquette définitive et en exporte une archive.
+\end{enumerate}
+
+Une image n'atteint donc l'étiquette définitive qu'après avoir prouvé qu'elle
+construit le produit. Sur la capture, le job \texttt{lint\_dockerfile} est en
+échec alors que l'exécution se termine en succès : les erreurs de \texttt{hadolint}
+sont tolérées. C'est un choix provisoire, le temps de résorber les
+avertissements existants.
+
+% ===========================================================================
+\subsection{L'infrastructure d'exécution}
+\label{ssec:impl-runners}
+
+\emph{Exigences : ENF4, ENF6, ENF19 à ENF21.}
+
+\subsubsection{Modèle d'exécuteurs éphémères}
+
+Les jobs lourds (compilation, Yocto, construction d'image) s'exécutent sur
+\texttt{orchestrator-runner}, un service d'exécuteurs qui alloue une machine
+neuve par job et la détruit ensuite. Les jobs légers (rapports de test, couverture, BDBA,
+publication) utilisent \texttt{ubuntu-22.04} avec l'image
+\texttt{se-ubuntu-noble:3.0.1} : ils n'ont pas besoin de la chaîne d'outils et
+ne doivent pas occuper un exécuteur coûteux. Ce modèle impose cinq
+conséquences de conception :
+
+\begin{itemize}[nosep]
+  \item \textbf{Droits.} Le conteneur est lancé avec \texttt{options: -u root},
+        les droits d'écriture n'étant autrement pas accordés. Ce contournement,
+        signalé dans le YAML comme un « dirty workaround », oblige la chaîne Yocto
+        à rétrograder les privilèges (section~\ref{sec:impl-pipeline-yocto}).
+  \item \textbf{Chemins.} Le répertoire de travail est \texttt{/\_\_w/ci/ci}. Il
+        est paramétré (\texttt{workspace\_path}) pour fonctionner en mode appelé, et
+        neutralisé côté Coverity par \texttt{--strip-path}.
+  \item \textbf{Aucun cache local.} Chaque exécution refait les téléchargements
+        et les compilations (voir ci-dessous).
+  \item \textbf{Réseau et secrets.} Les accès aux serveurs internes (Coverity,
+        BDBA, Artifactory, VictoriaMetrics) passent par les identifiants injectés au
+        démarrage du job.
+  \item \textbf{Temps.} Les garde-fous \texttt{timeout-minutes} sur les étapes
+        susceptibles de bloquer remplacent la supervision qu'on aurait sur une
+        machine persistante.
+\end{itemize}
+
+\subsubsection{Limite : le cache de la distribution}
+
+Les répertoires \texttt{DL\_DIR} et \texttt{SSTATE\_DIR} sont créés dans
+l'espace de travail du job par un fichier \texttt{site.conf} généré à
+l'exécution :
+
+\begin{lstlisting}[language=bash,caption={Configuration Yocto générée par le job},label={lst:impl-siteconf}]
+DL_DIR     = '$GITHUB_WORKSPACE/projets/yocto/downloads'
+SSTATE_DIR = '$GITHUB_WORKSPACE/projets/yocto/sstate-cache'
+BB_NUMBER_THREADS = '32'
+PARALLEL_MAKE = '-j 32'
+\end{lstlisting}
+
+L'exécuteur étant détruit à la fin du job, ces deux caches repartent de zéro à
+chaque exécution : chacune des cinq variantes retélécharge les sources et
+recompile l'ensemble des paquets, ce qui explique en grande partie la durée de
+1 h 05 de la chaîne. La parallélisation à 32 threads ne réduit que la durée de
+chaque compilation, pas la redondance entre cellules. L'exigence ENF6
+(cache partagé) n'est donc \emph{pas} couverte par la chaîne actuelle.
+
+\subsubsection{Étude des solutions NFS et snapshot}
+\label{sssec:impl-etude-cache}
+
+J'ai étudié deux solutions pour rendre ces caches persistants malgré le caractère
+éphémère des exécuteurs (tableau~\ref{tab:impl-cache}).
+
+\begin{table}[H]
+\centering
+\caption{Solutions étudiées pour le cache de la distribution}
+\label{tab:impl-cache}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.6cm} X X@{}}
+\toprule
+\textbf{Solution} & \textbf{Principe} & \textbf{Points d'attention} \\
+\midrule
+Partage NFS &
+  Montage d'un volume réseau comme \texttt{DL\_DIR} et \texttt{SSTATE\_DIR} &
+  Écritures concurrentes des cinq cellules de la matrice ; latence sur de très
+  nombreux petits fichiers ; disponibilité du service depuis les exécuteurs \\
+Snapshot &
+  Volume restauré au démarrage de l'exécuteur à partir d'un instantané du cache &
+  Instantané à rafraîchir régulièrement ; cache en lecture seule, les nouveaux
+  états n'étant pas réinjectés ; compatibilité avec le service d'exécuteurs \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\aecrire{Compléter avec les critères de comparaison de l'étude, la solution
+recommandée et son gain attendu. Indiquer clairement qu'elle n'est pas mise en
+œuvre à ce stade et la renvoyer en perspectives. Si une mesure existe
+(durée à froid et à chaud), l'ajouter ici.}
+
+\subsubsection{Gestion des secrets et sécurité}
+
+Les secrets utilisés sont \texttt{GIT\_SRV\_SSH\_KEY}, \texttt{COV\_AUTH\_JSON},
+\texttt{COV\_SRV\_CNXON}, \texttt{AM\_BDBA\_API\_TOKEN}, \texttt{JFROG\_SRV\_PAT} et
+\texttt{VMET\_PASSWORD}. Les fichiers qui les contiennent sont créés avec
+\texttt{chmod 0600} et supprimés après usage (\texttt{.cov\_cnx.yml}), le
+checkout n'enregistre pas les identifiants (\texttt{persist-credentials: false})
+et l'image de compilation ne contient aucune clé grâce au montage SSH. Deux
+limites subsistent : le jeton BDBA est passé en argument de ligne de commande
+aux scripts Python, donc visible dans la liste des processus de l'exécuteur
+(masqué dans les journaux, mais pas dans la machine) ; et la chaîne Yocto écrit
+la clé SSH sur le disque de l'exécuteur, dans un répertoire détruit avec lui.
+
+% ===========================================================================
+\subsection{L'observabilité}
+\label{ssec:impl-observabilite}
+
+\emph{Exigences : EF18 à EF22, ENF15 à ENF18.}
+
+La synthèse d'un run ne montre pas de tendance. Pour suivre la qualité dans le
+temps, chaque chaîne envoie ses indicateurs à VictoriaMetrics, qu'un tableau de
+bord Grafana interroge.
+
+\paragraph{Action de collecte.} L'action composite
+\texttt{.github/actions/upload-vm-metrics} encapsule l'envoi pour éviter de
+dupliquer les appels \texttt{curl} dans chaque workflow. Elle accepte deux
+modes, selon la source :
+
+\begin{lstlisting}[language=bash,caption={Deux modes d'envoi des métriques},label={lst:impl-vm}]
+# Mode fichier : JSON Lines d'import (BDBA, plusieurs séries)
+curl -T "$METRICS_JSONL_FILE" -u "$VMET_USER:$VMET_PASSWORD" \
+     -X POST "https://$VMET_URL/api/v1/import"
+
+# Mode valeur unique : format texte Prometheus
+curl -d "${METRIC_NAME}{${METRIC_LABELS}} ${METRIC_VALUE}" \
+     -u "$VMET_USER:$VMET_PASSWORD" \
+     -X POST "https://$VMET_URL/api/v1/import/prometheus"
+\end{lstlisting}
+
+Le mode texte suffit pour une valeur scalaire (taille de l'artefact,
+couverture) ; le mode JSON Lines est nécessaire quand un script produit
+plusieurs séries étiquetées (\texttt{bdba\_component} par statut,
+\texttt{bdba\_vulns} par sévérité). Les étiquettes communes
+(\texttt{bu="em"}, \texttt{project="bluebird"}, \texttt{repo},
+\texttt{branch}, \texttt{workflow}) permettent de filtrer par chaîne et par
+branche dans Grafana. Le nom d'utilisateur est une variable de dépôt et le mot de
+passe un secret.
+
+\begin{table}[H]
+\centering
+\caption{Indicateurs collectés vers VictoriaMetrics}
+\label{tab:impl-indicateurs}
+\small
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Métrique} & \textbf{Contenu} & \textbf{Origine} \\
+\midrule
+\texttt{sdp\_artifact\_size} & Taille de l'archive \texttt{lib} + \texttt{bin} & \texttt{du -cb}, chaque cellule \\
+\texttt{code\_coverage} & Couverture de lignes (\%) & \texttt{gcovr}, DEBUG/amd64 \\
+\texttt{bdba\_component} & Composants, par statut & \texttt{BDBA\_ExtractMetrics.py} \\
+\texttt{bdba\_vulns} & Vulnérabilités, par sévérité & \texttt{BDBA\_ExtractMetrics.py} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Tableau de bord.} J'ai mis à jour le tableau de bord Grafana
+« Bluebird w1.2 / Daily -- COM team » (figure~\ref{fig:impl-grafana}). Il est
+organisé en quatre sections : sprint en cours, \emph{Quality \& Security}
+(défauts Coverity P1 et P2, couverture, taille de l'artefact, répartition des
+composants et des vulnérabilités), état des workflows (statut et durée du
+dernier run, un onglet par chaîne) et pull requests ouvertes. À la date de la
+capture, il affiche 3 défauts P1, 46 défauts P2, 32,3 \% de couverture, un
+artefact de 78,0 Mo et un dernier run \texttt{pm77xx-app} réussi en 23,1 minutes.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{dashboard-grafana}
+\caption{Tableau de bord Grafana de l'équipe COM}
+\label{fig:impl-grafana}
+\end{figure}
+
+% ===========================================================================
+\subsection{Bilan}
+\label{ssec:impl-bilan}
+
+\subsubsection{Couverture des exigences}
+
+Le tableau~\ref{tab:impl-bilan-ef} indique, pour chaque groupe d'exigences
+fonctionnelles, la section qui les traite et leur état.
+
+\begin{table}[H]
+\centering
+\caption{Couverture des exigences fonctionnelles}
+\label{tab:impl-bilan-ef}
+\small
+\begin{tabularx}{\textwidth}{@{}l X l l@{}}
+\toprule
+\textbf{Réf.} & \textbf{Constat} & \textbf{Section} & \textbf{État} \\
+\midrule
+EF1, EF2 & Matrice native/croisée $\times$ DEBUG/RELEASE & \ref{sec:impl-pipeline-app} & Couverte \\
+EF3 & Coverity en trois phases, rapports P1/P2 & \ref{ssec:impl-coverity} & Couverte \\
+EF4 & Scan BDBA de l'archive RELEASE/aarch64 & \ref{ssec:impl-bdba} & Couverte \\
+EF5, EF7, EF8 & Tests unitaires, couverture, synthèse & \ref{ssec:impl-ut} & Couverte \\
+EF6 & Robot Framework, désactivé par défaut, DEBUG/amd64 & \ref{ssec:impl-robot} & Partielle \\
+EF9 & Version fixe, pas d'empreinte de commit dans le nom & \ref{ssec:impl-publication-app} & Partielle \\
+EF10 à EF13 & Cinq variantes, \gls{sdk}, publication & \ref{sec:impl-pipeline-yocto} & Couverte \\
+EF14 à EF17 & Image versionnée, validée, publiée & \ref{sec:impl-conteneur} & Couverte \\
+EF18, EF20, EF21 & Collecte, historisation, Grafana & \ref{ssec:impl-observabilite} & Couverte \\
+EF19, EF22 & Deux formats d'import ; évolution des constructions limitée au dernier run & \ref{ssec:impl-observabilite} & Partielle \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Pour les exigences non fonctionnelles, ENF1, ENF2, ENF4, ENF5, ENF8, ENF9,
+ENF12 à ENF14 et ENF19 à ENF21 sont couvertes par les choix décrits plus haut.
+ENF3 (traçabilité des artefacts) est partielle, pour la raison donnée pour
+EF9. ENF6 (cache partagé de la distribution) n'est pas couverte : l'étude
+NFS/snapshot en a posé les bases. ENF11 (mutualisation entre les équipes COM et
+MET) n'a pas été traitée.
+
+\subsubsection{Difficultés transverses}
+
+Le débogage des scripts bash et Python a occupé une part notable du travail.
+Les problèmes récurrents étaient :
+
+\begin{itemize}[nosep]
+  \item un code de sortie significatif (\texttt{extract\_cov.sh}) interprété comme un
+        échec par la plateforme ;
+  \item des chemins qui varient selon l'image dans laquelle s'exécute le job
+        (artefacts, répertoire de travail) ;
+  \item des étapes qui ne terminent jamais, d'où les \texttt{timeout-minutes} ;
+  \item des citations de secrets et de chaînes dans les scripts embarqués dans le YAML,
+        déplacés dans \texttt{scripts/} pour être testables (principe P1).
+\end{itemize}
+
+\subsubsection{Limites et perspectives}
+
+\begin{itemize}[nosep]
+  \item cache partagé de la distribution (NFS ou snapshot) ;
+  \item blocage de la chaîne sur les défauts Coverity nouvellement introduits ;
+  \item activation de Robot Framework par défaut et extension aux autres cellules ;
+  \item nommage des artefacts avec l'empreinte du commit et l'étiquette de l'image ;
+  \item exécution de l'image de compilation sans privilèges root ;
+  \item passage du jeton BDBA par l'environnement et non par la ligne de commande.
+\end{itemize}
 

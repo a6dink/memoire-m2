@@ -1,324 +1,158 @@
 % ============================================================================
 %  Chapitre 3 — CI/CD pour les systèmes embarqués : état de l'art
-%  Cible : 12 à 15 pages. À rédiger J4-J5.
-%
-%  RÈGLE : chaque section se termine par un paragraphe « ce que l'on retient
-%  pour ce travail ». Un état de l'art qui ne redescend pas sur le cas traité
-%  est systématiquement sanctionné.
-%
-%  STRUCTURE : quatre piliers, dans l'ordre où ils apparaissent dans une
-%  chaîne : (1) la CI elle-même, (2) la qualité et la sécurité greffées
-%  dessus, (3) l'infrastructure qui l'exécute, (4) l'observabilité qui la
-%  pilote. Rester au niveau des principes : le détail technique relève du
-%  chapitre 4.
+%  Version condensée (2 à 3 pages). Le détail technique relève du chapitre 4.
+%  Les étiquettes des anciennes sous-sections sont conservées pour les
+%  références croisées des autres chapitres.
 % ============================================================================
 \chapter{CI/CD pour les systèmes embarqués : état de l'art}
 \label{chap:etat-art}
 
-\aecrire{Un paragraphe d'introduction annonçant les quatre piliers traités
-dans ce chapitre et l'ordre retenu : la chaîne d'intégration elle-même, les
-pratiques de qualité et de sécurité qui s'y greffent, l'infrastructure qui
-l'exécute, et enfin l'observabilité qui permet de la piloter.}
+Ce chapitre présente, dans l'ordre où ils apparaissent dans une chaîne, quatre
+piliers : l'intégration continue elle-même, la qualité et la sécurité qui s'y
+greffent, l'infrastructure qui l'exécute, et l'observabilité qui permet de la
+piloter. Chaque section se termine par ce que l'on en retient pour ce travail.
 
 % ===========================================================================
 \section{L'intégration continue}
 \label{sec:art-ci}
 
-\subsection{Principes et portée}
+L'intégration continue consiste à intégrer fréquemment le travail de chaque
+développeur dans une ligne principale partagée, chaque intégration étant
+validée par une construction et des tests automatisés~\cite{fowler2006ci,duvall2007ci}.
+La livraison continue maintient en outre le logiciel dans un état
+déployable~\cite{humble2010cd}. Les études empiriques confirment le bénéfice de
+cette automatisation sur la qualité et la productivité~\cite{vasilescu2015quality},
+mais aussi son coût de maintenance~\cite{hilton2016usage} et la forte variabilité
+des mises en œuvre industrielles~\cite{stahl2014modeling}.
 
-L'intégration continue est définie comme la pratique consistant à intégrer
-fréquemment le travail de chaque développeur dans une ligne principale
-partagée, chaque intégration étant validée par une construction et une
-exécution automatisées des tests~\cite{fowler2006ci,duvall2007ci}. La
-livraison continue prolonge ce principe en maintenant en permanence le
-logiciel dans un état déployable~\cite{humble2010cd}. Concrètement, une chaîne
-d'intégration enchaîne trois temps : elle \emph{compile} le code source en un
-artefact exécutable, elle \emph{teste} automatiquement le comportement de cet
-artefact, puis elle \emph{produit et publie} le livrable validé. C'est
-l'automatisation et la répétabilité de cet enchaînement, davantage que chacune
-des étapes prise isolément, qui constitue l'apport de la pratique.
-
-Les études empiriques confirment le bénéfice de cette automatisation tout en
-en rappelant le coût. Vasilescu et al. observent, sur un large corpus de
-projets, une amélioration conjointe de la qualité et de la productivité des
-équipes ayant adopté l'intégration continue~\cite{vasilescu2015quality}.
-Hilton et al. montrent toutefois que cette adoption s'accompagne d'un effort
-de maintenance non négligeable de la chaîne elle-même~\cite{hilton2016usage},
-et Ståhl et Bosch soulignent la forte variabilité des mises en œuvre
-industrielles, qui interdit de parler d'une pratique unique et
-normalisée~\cite{stahl2014modeling}.
-
-\subsection{Ce que change le contexte embarqué}
 \label{ssec:art-ci-embarque}
+Le contexte embarqué complique cet enchaînement. Le livrable est une image
+complète (système, composants de base, services applicatifs) et non un simple
+binaire ; la chaîne doit donc produire des artefacts de rythmes très différents,
+l'applicatif d'un côté et l'image bas niveau, dont la construction se compte en
+heures, de l'autre. Les retours industriels recensent la compilation croisée, la
+dépendance au matériel pour une partie des tests et la durée des
+constructions~\cite{martensson2016embedded,shahin2017continuous}, et soulignent que
+les pratiques DevOps s'adaptent mal aux produits dont le déploiement n'est pas
+continu~\cite{lwakatare2019devops}. La \emph{reproductibilité} du livrable --- obtenir
+le même artefact à partir de la même révision, quelles que soient la machine et
+la date --- est de plus un levier d'intégrité de la chaîne d'approvisionnement
+logicielle~\cite{lamb2022reproducible}.
 
-Dans un contexte embarqué, cet enchaînement se complexifie sensiblement. Le
-livrable attendu n'est pas un simple binaire applicatif, mais une image
-logicielle complète embarquant à la fois le système d'exploitation, ses
-composants de base et les services applicatifs. La chaîne doit donc produire
-deux natures d'artefacts, selon des rythmes très différents : l'applicatif,
-qui évolue à chaque modification des développeurs, et l'image bas niveau, dont
-la construction complète se compte en heures.
-
-Mårtensson et al., à partir de retours industriels sur des systèmes embarqués
-à forte composante logicielle, recensent précisément ces obstacles :
-compilation croisée vers la cible, dépendance au matériel pour une partie des
-tests, et durée des constructions~\cite{martensson2016embedded}. Lwakatare et
-al. observent de leur côté, sur cinq entreprises, que les pratiques DevOps
-s'adaptent difficilement aux produits dont le déploiement n'est pas
-continu~\cite{lwakatare2019devops}. La revue systématique de Shahin et al.
-identifie de même la durée des constructions et la complexité des
-environnements de test comme deux obstacles récurrents à l'adoption de ces
-pratiques~\cite{shahin2017continuous}.
-
-\subsection{Reproductibilité du livrable}
-
-Au-delà de l'automatisation, le bénéfice attendu d'une chaîne d'intégration
-est de garantir la \emph{reproductibilité} du livrable : obtenir le même
-artefact à partir de la même révision du code source, indépendamment de la
-machine et de la date d'exécution. Lamb et Zacchiroli présentent cette
-propriété comme un levier d'intégrité de la chaîne d'approvisionnement
-logicielle, en ce qu'elle permet de vérifier qu'un binaire distribué
-correspond bien au code source annoncé~\cite{lamb2022reproducible}.
-
-\subsection{Ce que l'on retient}
-
-Ces contraintes justifient la séparation, dans l'architecture retenue, entre
-la chaîne de construction applicative et celle de l'image bas niveau : leurs
-rythmes de construction et leurs durées d'exécution sont incompatibles au sein
-d'une même chaîne. Elles imposent par ailleurs de traiter la reproductibilité
-de l'environnement de compilation comme un prérequis, avant toute autre
-amélioration de la chaîne.
-
+\textbf{Ce que l'on retient.} Ces contraintes justifient de séparer la chaîne
+applicative de celle de l'image bas niveau, et de traiter la reproductibilité de
+l'environnement de compilation comme un prérequis.
 
 % ===========================================================================
 \section{Qualité et sécurité logicielle}
 \label{sec:art-qualite-securite}
 
-Une chaîne qui compile et qui teste garantit que le logiciel fonctionne, non
-qu'il est de bonne qualité ni qu'il est sûr. Ces deux propriétés supposent des
-vérifications supplémentaires, greffées sur la chaîne d'intégration et
-exécutées à chaque construction.
+Une chaîne qui compile et teste garantit que le logiciel fonctionne, non qu'il
+est de bonne qualité ni sûr. La mesure de couverture indique la part du code
+exercée par les tests (lignes, fonctions, branches) ; elle s'interprète par sa
+\emph{tendance} plus que par sa valeur absolue.
 
-\subsection{Évaluer la qualité du code}
-
-Plusieurs mécanismes complémentaires permettent d'évaluer et d'améliorer la
-qualité d'une base de code. Les outils d'analyse de style vérifient le respect
-des conventions d'écriture et signalent les constructions à risque. La mesure
-de couverture de code indique quelle proportion du code est effectivement
-exercée par les tests, par lignes, par fonctions ou par branches. Cette
-mesure doit être interprétée avec prudence : une couverture élevée ne garantit
-pas la pertinence des tests, et son intérêt principal en intégration continue
-réside moins dans la valeur absolue atteinte que dans le suivi de sa
-\emph{tendance} au fil des livraisons.
-
-\subsection{Analyse statique de code (SAST)}
 \label{ssec:art-sast}
+\emph{L'analyse statique} recherche des défauts sans exécuter le code. Elle est
+largement adoptée mais souvent configurée a minima et peu intégrée au flux
+quotidien~\cite{beller2016analyzing} ; la difficulté est organisationnelle plus
+que technique, le volume de signalements et les faux positifs conditionnant son
+adoption~\cite{zampetti2017static}. Introduite sur une base existante, elle révèle
+une dette que l'on ne résorbe pas à court terme : on peut soit faire échouer la
+construction dès un défaut, soit se limiter à notifier. Ce travail retient la
+notification, justifiée au chapitre~\ref{chap:besoins} et discutée au
+chapitre~\ref{chap:evaluation}.
 
-L'analyse statique consiste à rechercher des défauts dans le code sans
-l'exécuter, en raisonnant sur sa structure et sur les chemins d'exécution
-possibles. Beller et al. montrent que ces outils sont largement adoptés dans
-les projets open source, mais souvent configurés de façon minimale et
-rarement intégrés au flux de travail quotidien~\cite{beller2016analyzing}.
-Zampetti et al. analysent précisément cette intégration dans les chaînes
-d'intégration continue et relèvent que la principale difficulté n'est pas
-technique mais organisationnelle : le volume de signalements, et notamment la
-proportion de faux positifs, conditionne l'adoption effective de l'outil par
-les équipes~\cite{zampetti2017static}.
-
-Cette question se pose avec une acuité particulière lorsque l'analyse est
-introduite sur une base de code existante : la première exécution révèle
-alors une dette accumulée dont le traitement intégral est rarement réaliste à
-court terme. Deux postures sont possibles — faire échouer la construction dès
-qu'un défaut est détecté, ou se limiter à notifier — chacune ayant des
-conséquences différentes sur l'adhésion des développeurs.
-
-\aecrire{Préciser la posture retenue dans ce travail et la renvoyer au
-chapitre~\ref{chap:besoins} pour sa justification, ainsi qu'au
-chapitre~\ref{chap:evaluation} pour sa discussion.}
-
-\subsection{Analyse de composition logicielle (SCA)}
 \label{sec:art-supply-chain}
+\emph{L'analyse de composition} répond au fait qu'un produit embarqué agrège de
+nombreux composants tiers, chacun pouvant porter des vulnérabilités ; les
+attaques sur la chaîne d'approvisionnement sont devenues un mode de compromission
+à part entière~\cite{ohm2020backstabber}. Elle s'appuie sur la nomenclature
+logicielle (\gls{sbom}), dont les éléments minimaux ont été définis par la
+NTIA~\cite{ntia2021sbom} et le format SPDX normalisé par
+l'ISO/IEC~5962~\cite{iso5962}, puis sur la corrélation aux vulnérabilités
+publiques (\gls{cve}), hiérarchisées par le score \gls{cvss} et classées selon
+les catégories de l'OWASP~\cite{owasptop10}. Dans une distribution embarquée,
+analyser l'artefact compilé plutôt que les seuls fichiers de dépendances permet
+d'identifier les composants réellement présents dans l'image.
 
-Un produit embarqué n'est pas constitué que de code écrit par l'équipe : il
-agrège un grand nombre de composants tiers, dont chacun peut porter des
-vulnérabilités connues. Ohm et al. proposent une taxonomie des attaques
-visant la chaîne d'approvisionnement des logiciels libres et montrent que ce
-vecteur est devenu un mode de compromission à part
-entière~\cite{ohm2020backstabber}.
-
-La réponse apportée par l'industrie repose sur deux volets complémentaires.
-Le premier est la nomenclature logicielle (\gls{sbom}), qui recense les
-composants entrant dans la composition d'un produit : les éléments minimaux
-attendus ont été définis par la NTIA~\cite{ntia2021sbom} et le format SPDX
-normalisé sous la référence ISO/IEC~5962~\cite{iso5962}. Le second est
-l'analyse de composition logicielle, qui consiste à identifier ces composants
-puis à les corréler aux bases de vulnérabilités publiques (\gls{cve}), les
-signalements étant hiérarchisés selon un score de sévérité
-normalisé (\gls{cvss}). Les catégories de risques applicatifs recensées par
-l'OWASP~\cite{owasptop10} fournissent par ailleurs une grille de lecture
-largement utilisée pour classer les vulnérabilités détectées.
-
-\aecrire{Préciser, sans entrer dans le détail des outils, pourquoi l'analyse
-de l'artefact compilé est mieux adaptée qu'une analyse des seuls fichiers de
-dépendances dans un contexte de distribution embarquée.}
-
-\subsection{Cadre normatif et réglementaire}
 \label{ssec:art-normes}
+Ces pratiques sont désormais attendues par le cadre normatif : la norme
+IEC~62443-4-1~\cite{iec62443_4_1} définit les exigences de développement sécurisé
+pour l'automatisation industrielle, et le règlement (UE)~2024/2847~\cite{cra2024}
+impose notamment la tenue d'une nomenclature logicielle et le traitement des
+vulnérabilités pendant toute la durée de support du produit.
 
-Ces pratiques ne relèvent pas seulement d'une bonne hygiène de développement :
-elles sont désormais attendues par le cadre normatif. La norme
-IEC~62443-4-1~\cite{iec62443_4_1} définit les exigences de cycle de
-développement sécurisé pour les produits d'automatisation industrielle, et le
-règlement (UE) 2024/2847~\cite{cra2024} introduit des obligations de
-cybersécurité pour les produits comportant des éléments numériques, dont la
-tenue d'une nomenclature logicielle et le traitement des vulnérabilités
-pendant toute la durée de support du produit.
-
-\aecrire{Établir la correspondance entre ces exigences et les pratiques
-outillées présentées ci-dessus : c'est ce qui distingue ce travail d'un simple
-exercice d'outillage. Renvoyer au chapitre~\ref{chap:besoins} pour la mise en
-œuvre effective.}
-
-\subsection{Ce que l'on retient}
-
-Ces vérifications n'ont de valeur que si elles sont automatiques,
-systématiques et restituées au développeur au moment où il peut agir. C'est
-cette exigence de restitution — et non la seule disponibilité des outils —
-qui guidera les choix de conception du chapitre~\ref{chap:besoins}.
+\textbf{Ce que l'on retient.} Ces vérifications n'ont de valeur que si elles
+sont automatiques, systématiques et restituées au développeur au moment où il
+peut agir.
 
 % ===========================================================================
 \section{L'infrastructure d'exécution}
 \label{sec:art-infra}
 
-Une chaîne d'intégration ne s'exécute pas dans le vide : elle consomme des
-machines. Le modèle d'exécution retenu conditionne à la fois la fiabilité des
-résultats produits et le coût de fonctionnement de la chaîne.
+Deux modèles coexistent : des machines permanentes, réutilisées d'une exécution
+à l'autre, ou des exécuteurs \emph{éphémères}, alloués puis détruits à chaque
+exécution. Le second garantit que deux exécutions partent de conditions
+identiques, mais interdit toute persistance locale, alors que les constructions
+embarquées reposent sur la réutilisation de résultats intermédiaires. La
+conteneurisation complète ce dispositif : décrire l'environnement de compilation
+sous forme d'image versionnée donne une base unique pour la chaîne et pour les
+postes des développeurs, et supprime une cause classique de divergence entre
+résultats locaux et résultats d'intégration.
 
-\subsection{Machines permanentes ou exécuteurs éphémères}
-
-Deux grands modèles coexistent. Le premier repose sur des machines
-permanentes, configurées une fois puis réutilisées d'une exécution à l'autre.
-Le second alloue un exécuteur \emph{éphémère} au démarrage de chaque
-exécution, puis le détruit à la fin. Ce second modèle présente un avantage
-déterminant pour la fiabilité des résultats : aucun état ne subsiste d'une
-exécution à l'autre, ce qui élimine les défaillances dues à une configuration
-résiduelle et garantit que deux exécutions successives partent de conditions
-identiques.
-
-Cette garantie a toutefois une contrepartie directe : l'absence de
-persistance interdit de conserver localement des données entre deux
-exécutions. Or les constructions embarquées reposent largement sur la
-réutilisation de résultats intermédiaires pour rester dans des durées
-acceptables. Cette contrainte structure donc l'architecture de la chaîne, qui
-doit organiser explicitement la conservation et la restitution de ces données
-entre exécutions.
-
-\aecrire{Préciser que la solution effectivement utilisée est décrite au
-chapitre~\ref{chap:besoins}, et rappeler qu'il s'agit d'une contrainte
-d'entreprise et non d'un choix d'architecture de l'auteur.}
-
-\subsection{Conteneurisation et parité des environnements}
-
-La conteneurisation répond à un besoin distinct mais complémentaire : garantir
-que l'environnement de compilation soit strictement identique quelle que soit
-la machine qui l'exécute. En décrivant cet environnement sous forme d'image
-versionnée, on obtient une base unique utilisable à la fois par la chaîne
-d'intégration et par les développeurs sur leur poste. Cette parité supprime
-l'une des causes classiques de divergence entre les résultats obtenus
-localement et ceux obtenus en intégration.
-
-\subsection{Ce que l'on retient}
-
-Le modèle d'exécuteurs éphémères, imposé par le contexte d'entreprise, apporte
-l'isolation nécessaire à la fiabilité des résultats mais interdit toute
-persistance locale. Cette contrainte, conjuguée à la conteneurisation de
-l'environnement de compilation, constitue le principal facteur structurant de
-l'architecture décrite au chapitre~\ref{chap:besoins}.
+\textbf{Ce que l'on retient.} Les exécuteurs éphémères sont une contrainte
+d'entreprise, non un choix d'architecture ; avec la conteneurisation, ils
+structurent l'architecture décrite au chapitre~\ref{chap:besoins}.
 
 % ===========================================================================
 \section{L'observabilité de la chaîne}
 \label{sec:art-observabilite}
 
-Une chaîne d'intégration produit, à chaque exécution, un résultat ponctuel :
-la construction a réussi ou échoué, les tests sont passés ou non. Ce résultat
-isolé ne dit rien de l'évolution du produit ni de la chaîne elle-même. Or
-c'est bien cette évolution — la couverture progresse-t-elle ? les défauts
-diminuent-ils ? la chaîne devient-elle plus lente ? — qui permet de piloter la
-qualité. Collecter, historiser et restituer des indicateurs devient dès lors
-indispensable.
+Une exécution ne produit qu'un résultat ponctuel (réussite ou échec) qui ne dit
+rien de l'évolution du produit ni de la chaîne. Piloter la qualité suppose de
+\emph{collecter} les indicateurs, de les \emph{traduire} vers un format commun
+historisable, puis de les \emph{formaliser} sous une forme lisible : un
+indicateur ni consulté ni compris n'a aucune capacité de pilotage.
 
-\subsection{Quels indicateurs mesurer}
 \label{sec:art-dora}
+Le programme \gls{dora} retient quatre indicateurs de performance de livraison :
+fréquence de déploiement, délai de mise en production, taux d'échec des
+changements et délai de rétablissement~\cite{forsgren2018accelerate}. Ils
+supposent un produit déployé en continu, ce qui n'est pas le cas d'un
+équipement installé sur le terrain. Ce travail les adapte : fréquence
+d'intégration à la place de la fréquence de déploiement, délai de retour à la
+place du délai de mise en production, et délai de rétablissement d'une chaîne
+cassée plutôt que d'un service en production.
 
-Les travaux du programme \gls{dora} identifient quatre indicateurs de
-performance de livraison logicielle : la fréquence de déploiement, le délai de
-mise en production, le taux d'échec des changements et le délai de
-rétablissement~\cite{forsgren2018accelerate}. Ces indicateurs se sont imposés
-comme une référence, mais ils supposent un produit déployé en continu, ce qui
-n'est pas le cas d'un équipement industriel installé sur le terrain.
-
-\aecrire{Discuter honnêtement l'applicabilité de ces quatre indicateurs au cas
-traité et proposer les adaptations retenues (par exemple : fréquence
-d'intégration au lieu de fréquence de déploiement, délai de rétablissement
-d'une chaîne cassée plutôt que d'un service en production). Cette adaptation
-argumentée constitue en soi une contribution méthodologique.}
-
-\subsection{Collecter, traduire, formaliser}
-
-La démarche d'observabilité se décompose en trois temps. Le premier consiste
-à \emph{collecter} les indicateurs bruts produits par la chaîne et par les
-outils d'analyse qui y sont intégrés. Le deuxième consiste à les
-\emph{traduire} : ces données proviennent de sources hétérogènes, dans des
-formats différents, et doivent être converties vers une représentation commune
-exploitable et historisable. Le troisième consiste à les \emph{formaliser},
-c'est-à-dire à les restituer sous une forme lisible et directement
-interprétable par l'équipe.
-
-Cette dernière étape est souvent négligée alors qu'elle conditionne toute la
-valeur de la démarche : un indicateur qui n'est ni consulté ni compris n'a
-aucune capacité de pilotage, quelle que soit la rigueur de sa collecte.
-
-\subsection{Ce que l'on retient}
-
-Une solution de supervision n'est pas, en soi, indispensable au
-fonctionnement d'une chaîne d'intégration : celle-ci construit, teste et livre
-tout aussi bien sans elle. Son apport est ailleurs — elle transforme une
-succession de résultats ponctuels en une information de pilotage. Pour les
-développeurs, elle donne une lecture objective de l'état du produit : la
-couverture progresse-t-elle à mesure que le code grossit, les défauts
-d'analyse statique sont-ils résorbés ou s'accumulent-ils ? Pour l'encadrement,
-elle fournit des éléments factuels d'arbitrage entre nouvelles fonctionnalités
-et consolidation, fondés sur des mesures plutôt que sur des impressions. Elle
-alimente enfin le dossier de preuves attendu par le cadre normatif
-(section~\ref{ssec:art-normes}), en attestant que les vérifications de
-sécurité sont exécutées de manière continue et non ponctuelle. Ces trois
-usages justifient de traiter l'observabilité comme un pilier à part entière,
-et son historisation constitue un prérequis méthodologique : sans série de
-mesures dans le temps, aucune amélioration ne pourrait être démontrée au
+\textbf{Ce que l'on retient.} La supervision n'est pas nécessaire au
+fonctionnement de la chaîne, mais elle transforme des résultats ponctuels en
+information de pilotage, alimente le dossier de preuves attendu par le cadre
+normatif (section~\ref{ssec:art-normes}) et fournit la série de mesures sans
+laquelle aucune amélioration ne pourrait être démontrée au
 chapitre~\ref{chap:evaluation}.
-
 
 % ===========================================================================
 \section{Synthèse et positionnement}
 \label{sec:art-synthese}
 
-\aecrire{Une page. Reprendre les quatre piliers traités dans ce chapitre et
-indiquer, pour chacun, ce que la littérature apporte et ce qui reste à traiter
-dans le cas industriel étudié. Terminer par un tableau de synthèse
-positionnant ce travail.}
-
 \begin{table}[H]
 \centering
 \caption{Positionnement du travail par rapport à l'état de l'art}
 \label{tab:art-positionnement}
+\small
 \begin{tabularx}{\textwidth}{@{}l X X@{}}
 \toprule
 \textbf{Pilier} & \textbf{Apport de la littérature} & \textbf{Reste à traiter} \\
 \midrule
-Intégration continue & & \\
-Qualité et sécurité & & \\
-Infrastructure d'exécution & & \\
-Observabilité & & \\
+Intégration continue & Principes, bénéfices, obstacles de l'embarqué &
+  Séparer applicatif et image ; fiabiliser l'environnement de compilation \\
+Qualité et sécurité & Analyse statique, composition, cadre normatif &
+  Restituer les résultats au développeur ; politique face à la dette \\
+Infrastructure d'exécution & Exécuteurs éphémères, conteneurs &
+  Composer avec l'absence de persistance \\
+Observabilité & Indicateurs \gls{dora} &
+  Adapter les indicateurs à un firmware ; historiser et visualiser \\
 \bottomrule
 \end{tabularx}
 \end{table}

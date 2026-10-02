@@ -23,13 +23,13 @@
 \input{frontmatter/remerciements}
 \input{frontmatter/resume}
 
-\cleardoublepage
+\clearpage
 \tableofcontents
-\cleardoublepage
+\clearpage
 \listoffigures
-\cleardoublepage
+\clearpage
 \listoftables
-\cleardoublepage
+\clearpage
 \printglossary[type=\acronymtype,title={Liste des acronymes}]
 
 \ifthenelse{\boolean{draftmode}}{\cleardoublepage\listoftodos[Travail restant]}{}
@@ -55,7 +55,6 @@
 
 % --------------------------------------------------------------- Annexes
 \appendix
-\include{annexes/a-extraits-code}
 \include{annexes/b-donnees-mesures}
 
 \end{document}

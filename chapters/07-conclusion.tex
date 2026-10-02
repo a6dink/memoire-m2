@@ -8,17 +8,64 @@
 \section{Rappel de la problématique et de la démarche}
 \label{sec:concl-rappel}
 
-\aecrire{Un paragraphe. Reformuler la question de recherche et résumer la
-démarche suivie. Ne pas introduire d'élément nouveau.}
+Ce mémoire part d'une question : comment concevoir et mettre en œuvre une
+chaîne d'intégration et de livraison continues reproductible, sécurisée et
+mesurable pour le firmware d'un produit industriel embarqué, sous contraintes
+de temps de construction longs, d'exigences de cybersécurité et
+d'infrastructure d'exécution éphémère. La démarche a consisté à reprendre une
+chaîne existante plutôt qu'à en créer une : analyse de l'existant et recueil des
+besoins auprès de l'équipe COM, formalisation d'exigences fonctionnelles et non
+fonctionnelles, conception, mise en œuvre sur trois chaînes (application,
+distribution Linux embarquée, image de compilation), puis évaluation sur cinq
+semaines d'exécutions réelles.
 
 \section{Principaux résultats}
 \label{sec:concl-resultats}
 
-\aecrire{Reprendre les six contributions annoncées en
-section~\ref{sec:intro-contributions} et, pour chacune, énoncer le résultat
-obtenu en une à deux phrases, avec les valeurs chiffrées du chapitre~6. La
-symétrie entre l'introduction et la conclusion est ce que le jury vérifie en
-premier.}
+Le tableau~\ref{tab:concl-resultats} reprend les cinq contributions annoncées
+en section~\ref{sec:intro-contributions} avec les résultats du
+chapitre~\ref{chap:evaluation}.
+
+\begin{table}[H]
+\centering
+\caption{Contributions et résultats}
+\label{tab:concl-resultats}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm} X@{}}
+\toprule
+\textbf{Contribution} & \textbf{Résultat} \\
+\midrule
+Conteneurisation de l'environnement de compilation &
+  Une image unique, aux versions d'outils épinglées et intégrant le \gls{sdk},
+  sert à la compilation native et croisée ; elle n'est publiée qu'après avoir
+  construit l'application complète. \\
+\addlinespace
+Deux chaînes consolidées &
+  Application : durée médiane de 21,8 min ; la matrice 2\,$\times$\,2 ramène
+  34 min 46 s de calcul cumulé à 23 min 06 s observées (environ $-33\,\%$).
+  Distribution : cinq variantes d'image et \gls{sdk} en 68,2 min médian. \\
+\addlinespace
+Analyses de sécurité &
+  Coverity restitue 3 défauts de priorité 1 et 46 de priorité 2 ; BDBA
+  identifie 4 composants et 122 vulnérabilités, dans la synthèse de chaque
+  exécution. \\
+\addlinespace
+Contraintes des exécuteurs éphémères &
+  Contraintes documentées (droits, chemins, absence de cache) ; la
+  distribution est reconstruite à froid à chaque exécution ; étude NFS et
+  snapshot réalisée, non mise en œuvre. \\
+\addlinespace
+Observabilité &
+  Métriques envoyées à VictoriaMetrics et tableau de bord Grafana : couverture
+  (32,3\,\% des lignes), taille d'artefact (78,0 Mo), état des chaînes. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Ces résultats répondent de manière inaboutie à deux des quatre questions
+d'évaluation : la reproductibilité repose sur des dispositifs en place mais
+l'identité des artefacts n'a pas été vérifiée, et la maîtrise du coût
+d'exécution reste limitée par l'absence de cache partagé.
 
 \section{Apports personnels}
 \label{sec:concl-apports-perso}
@@ -26,53 +73,68 @@ premier.}
 \subsection{Montée en compétences techniques}
 \label{ssec:concl-apports-technique}
 
-Ces missions m'ont amené à travailler sur un ensemble d'outils que je ne
-maîtrisais pas tous à mon arrivée : construction d'images de conteneurs,
-description de workflows d'intégration continue, génération d'une
-distribution Linux embarquée avec Yocto, description d'infrastructure en
-code, intégration d'outils d'analyse statique et de composition logicielle,
-et enfin collecte et restitution de métriques.
+Je maîtrisais déjà les bases de l'intégration continue et du scripting. Ces
+missions m'ont fait découvrir ou approfondir des outils que je ne maîtrisais
+pas à mon arrivée : construction d'images de conteneurs avec BuildKit,
+génération d'une distribution Linux embarquée avec Yocto et kas, intégration
+de Coverity et de BDBA, tests d'intégration avec Robot Framework, puis collecte
+et restitution de métriques avec VictoriaMetrics et Grafana.
 
-\aecrire{Distinguer brièvement ce qui était déjà maîtrisé en amont de ce qui
-a été appris pendant la mission, sans dresser une liste exhaustive d'outils.}
-
-En parallèle de ces travaux, j'ai également exploré l'apport possible de
-l'intelligence artificielle dans une chaîne CI/CD, notamment pour
-l'assistance au diagnostic d'échecs de construction et à l'analyse des
-résultats produits par la chaîne.
+En parallèle, j'ai exploré l'apport de l'intelligence artificielle dans la
+chaîne CI/CD en développant un agent qui m'aide à corriger les erreurs des
+exécutions. Une tâche de correction qui me prenait environ une heure ne me
+demande plus qu'environ cinq minutes avec l'agent. Ce chiffre est une
+estimation personnelle, non mesurée systématiquement ; il indique un potentiel
+plus qu'un résultat établi.
 
 \subsection{Intégration dans une organisation industrielle}
 \label{ssec:concl-apports-professionnel}
 
 Au-delà de l'aspect technique, ce stage a été ma première expérience du
-fonctionnement d'un grand groupe industriel et international. Travailler au
-sein d'un programme impliquant plusieurs équipes, des interlocuteurs répartis
-sur différents sites et des contraintes qui dépassent le seul périmètre de
-l'équipe m'a demandé d'adapter ma manière de travailler : mieux formuler les
-besoins, documenter davantage, et accepter que certaines décisions techniques
-dépendent d'arbitrages qui se prennent ailleurs.
+fonctionnement d'un grand groupe industriel et international. Le bilan que j'en
+tire est que les compétences relationnelles ont pesé plus lourd que les
+compétences techniques. Un outil se prend en main avec de la documentation ; en
+revanche, comprendre une chaîne héritée, distinguer ce qui est imposé de ce qui
+se décide, et rendre les résultats utiles à ceux qui s'en servent dépendent
+surtout des échanges avec les autres.
 
-\aecrire{Compléter avec des éléments concrets et factuels : rituels d'équipe
-suivis, gestion des priorités, échanges avec les interlocuteurs internes
-(qualité, cybersécurité produit, DSI). Rester sobre, une demi-page suffit.}
+L'équipe COM travaille en méthode agile, et trois rituels ont structuré ces
+échanges. La planification de sprint m'a permis de cadrer mes tâches et de
+négocier leur priorité avec le Product Owner ; la réunion quotidienne, de
+signaler tôt un blocage et de demander de l'aide plutôt que de le contourner
+seul ; la démonstration de fin de sprint, de présenter mes avancées
+(tableau de bord, synthèses, analyse BDBA) et d'en recueillir les retours. Mon
+tuteur, coordinateur DevSecOps, m'a aidé à distinguer ce qui relevait de
+contraintes de l'entreprise de ce que je pouvais décider. J'ai aussi appris à
+présenter honnêtement les limites de mon travail, comme la politique de
+non-blocage de l'analyse statique ou le faible niveau de couverture, plutôt que
+de les masquer.
 
-\subsection{En dehors du stage}
-\label{ssec:concl-apports-hors-stage}
+\subsection{Projet professionnel}
+\label{ssec:concl-projet-pro}
 
-\aecrire{Quelques phrases seulement sur la découverte de l'entreprise au-delà
-du périmètre technique : vie d'équipe, événements internes. Rester bref et
-sobre.}
+Ce travail confirme mon souhait de poursuivre dans le domaine du DevSecOps. Il
+relie trois sujets qui m'intéressent : l'automatisation des chaînes de
+construction, la sécurité de la chaîne d'approvisionnement logicielle (analyse
+de composition, nomenclature logicielle, signature des artefacts) et la
+qualité rendue mesurable. Les perspectives ci-dessous décrivent le travail que
+je souhaiterais y mener.
 
 \section{Perspectives}
 \label{sec:concl-perspectives}
 
-\aecrire{Formuler des perspectives précises et réalistes, issues des limites
-du chapitre~6. Éviter les généralités.}
+Les perspectives découlent des limites du chapitre~\ref{chap:evaluation}.
 
 \subsection{Court terme}
 \begin{itemize}[nosep]
-  \item Application d'une politique de blocage sur les défauts d'analyse
-        statique nouvellement introduits.
+  \item Blocage de la chaîne sur les défauts Coverity nouvellement introduits,
+        la comparaison de vues de \texttt{pyCovXtract.py} permettant de les isoler
+        de la dette initiale.
+  \item Activation par défaut des tests d'intégration Robot Framework.
+  \item Ajout de l'empreinte du commit et de l'étiquette de l'image de
+        compilation au nom des artefacts publiés.
+  \item Passage du jeton BDBA par l'environnement et non par la ligne de
+        commande.
   \item Exécution de la chaîne à chaque proposition de modification et non
         uniquement selon une planification quotidienne.
   \item Suppression de l'exécution en superutilisateur dans le conteneur de
@@ -81,6 +143,9 @@ du chapitre~6. Éviter les généralités.}
 
 \subsection{Moyen terme}
 \begin{itemize}[nosep]
+  \item Mise en œuvre d'un cache partagé pour la distribution (NFS ou
+        snapshot, selon l'étude menée), afin de réduire une construction qui repart
+        aujourd'hui à froid à chaque exécution.
   \item Intégration du banc de test matériel dans la chaîne, afin d'exécuter
         les tests sur cible réelle et non uniquement en compilation native.
   \item Génération et publication d'une nomenclature logicielle normalisée
@@ -90,18 +155,27 @@ du chapitre~6. Éviter les généralités.}
 
 \subsection{Long terme}
 \begin{itemize}[nosep]
-  \item Extension de la chaîne aux autres produits de la gamme, par
-        factorisation des workflows réutilisables.
+  \item Extension de la chaîne aux autres produits de la gamme, notamment à
+        l'équipe MET, par factorisation des workflows réutilisables.
   \item Automatisation de la constitution du dossier de preuves attendu par le
         cadre normatif.
+  \item Intégration de l'agent d'aide à la correction dans la chaîne, après
+        mesure de son apport sur un plus grand nombre de cas.
 \end{itemize}
 
 \section{Conclusion}
 \label{sec:concl-conclusion}
 
-\aecrire{Un paragraphe de clôture (10 à 15 lignes maximum), sans élément
-nouveau. Rappeler en une phrase la question de recherche, affirmer qu'elle
-trouve une réponse opérationnelle et mesurée dans ce travail, et refermer sur
-la portée du résultat pour la squad SW et pour \Entreprise. Éviter toute
-formule emphatique : terminer sur un constat factuel.}
+La question était de savoir comment rendre la chaîne d'intégration et de
+livraison d'un firmware embarqué reproductible, sécurisée et mesurable. Ce
+travail y apporte une réponse opérationnelle : la chaîne applicative rend un
+résultat complet en 21,8 minutes en médiane, les analyses de sécurité sont
+intégrées à chaque exécution avec restitution au développeur, et les
+indicateurs de qualité sont historisés et affichés dans un tableau de bord
+commun. Cette réponse reste partielle sur deux points identifiés : la
+distribution Linux est encore reconstruite à froid en 68,2 minutes et
+l'identité des artefacts d'une construction à l'autre n'a pas été vérifiée.
+Pour la squad SW comme pour \Entreprise, l'apport est une chaîne en service
+quotidien dont l'état se lit sans outil supplémentaire ; la prochaine étape est
+le cache partagé de la distribution.
 
