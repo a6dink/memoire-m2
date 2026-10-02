@@ -1,478 +1,236 @@
 % ============================================================================
-%  Chapitre 4 — Exigences et mise en œuvre de l'évolution de la chaîne
-%  et architecture cible » et « Mise en œuvre » : le travail ne consiste pas
-%  à concevoir une chaîne ex nihilo mais à diagnostiquer, faire évoluer et
-%  outiller une chaîne CI/CD existante (héritée d'un ingénieur précédent).
-%
-%  MÉTHODE pour chaque section de mise en œuvre : (1) objectif et exigence
-%  couverte, (2) état trouvé / défaut constaté, (3) évolution apportée avec
-%  extrait de code commenté, (4) difficulté rencontrée et solution.
+%  Chapitre 4 — Analyse des besoins, conception et mise en œuvre
+%  Le travail ne consiste pas à concevoir une chaîne ex nihilo mais à
+%  diagnostiquer, faire évoluer et outiller une chaîne CI/CD existante.
 % ============================================================================
 \chapter{Analyse des besoins, conception et mise en œuvre des évolutions de la chaîne CI/CD}
 \label{chap:besoins}
 
-\section{Démarche d’analyse de l’existant et recueil des besoins}
+\section{Analyse de l'existant et recueil des besoins}
+\label{sec:bes-analyse}
 
-\subsection{Situation de la chaîne CI/CD à mon arrivée}
+\subsection{Situation à mon arrivée}
 
-À mon arrivée au sein de l'équipe COM, une chaîne CI/CD était déjà en place 
-pour accompagner le développement et la maintenance du produit. 
-L'infrastructure existante reposait sur plusieurs workflows GitHub Actions 
-permettant d'automatiser certaines étapes du cycle de développement.
+À mon arrivée dans l'équipe COM, trois workflows GitHub Actions étaient en
+place : le premier compilait la couche applicative, exécutait les tests
+unitaires et l'analyse statique Coverity ; le deuxième construisait la
+distribution Linux embarquée avec Yocto ; le troisième produisait l'image de
+l'environnement de compilation. Cette organisation offrait un premier niveau
+d'automatisation, mais restait perfectible sur le suivi des indicateurs de
+qualité, la centralisation des résultats, l'observabilité des chaînes et
+l'automatisation des contrôles de sécurité. Ma mission consistait donc à
+reprendre cette chaîne, à en identifier les limites et à la faire évoluer,
+non à en concevoir une nouvelle.
 
-Trois workflows principaux étaient alors utilisés. Le premier était dédié 
-à la couche applicative et assurait la compilation du code, l'exécution 
-des tests unitaires ainsi que les analyses statiques de sécurité et de 
-qualité à l'aide de Coverity. Le deuxième workflow permettait la 
-compilation de la distribution Linux embarquée basée sur Yocto. Enfin, 
-un troisième workflow était chargé de générer l'image de l'environnement 
-de compilation nécessaire à l'exécution des différents processus de 
-construction du projet.
+\subsection{Méthode de recueil}
 
-Cette organisation offrait déjà un premier niveau d'automatisation des 
-activités de développement et garantissait une certaine reproductibilité 
-des compilations. Toutefois, certains aspects restaient perfectibles, 
-notamment en matière de suivi des indicateurs qualité, de centralisation 
-des résultats, d'observabilité des pipelines et d'automatisation des 
-contrôles de sécurité.
+La prise en main a combiné trois sources. La documentation interne
+(Confluence) et l'étude des dépôts GitHub Enterprise (workflows, scripts,
+configuration, historique des modifications) ont permis de reconstituer les
+étapes de construction et les dépendances entre dépôts. Des échanges réguliers
+avec trois développeurs de l'équipe COM et le Product Owner ont confronté cette
+documentation au fonctionnement réel et fait émerger les attentes des
+utilisateurs. Enfin, mon tuteur, coordinateur DevSecOps, m'a aidé à distinguer
+ce qui était imposé par l'environnement de l'entreprise de ce qui pouvait être
+adapté au module de communication. Ce recueil s'est poursuivi de manière
+itérative tout au long du stage.
 
-La mission qui m'a été confiée ne consistait donc pas à concevoir 
-une infrastructure CI/CD à partir de zéro, mais à reprendre une 
-chaîne existante, à en analyser le fonctionnement, à identifier 
-ses limites et à la faire évoluer afin de répondre aux besoins 
-croissants de reproductibilité, de qualité, de sécurité et de visibilité 
-sur l'état du projet.
+\subsection{Besoins identifiés}
 
-\subsection{Méthode de recueil des besoins}
+L'analyse n'a révélé aucun dysfonctionnement bloquant : l'enjeu était
+d'accompagner la croissance des besoins du projet. Les besoins identifiés se
+regroupent en quatre axes :
 
-La prise en main de l'infrastructure d'intégration continue existante 
-s'est appuyée sur une démarche progressive combinant l'étude de la 
-documentation interne, l'analyse des éléments techniques du projet 
-et des échanges avec les membres de l'équipe COM.
-
-Dans un premier temps, la documentation disponible sur Confluence a 
-été consultée afin de comprendre l'organisation générale du projet, 
-les pratiques de développement de l'équipe ainsi que le fonctionnement 
-des différentes chaînes d'intégration. Cette analyse documentaire a  
-été complétée par l'étude des dépôts hébergés sur GitHub Enterprise. 
-L'examen des workflows, des scripts d'automatisation, des fichiers de 
-configuration et de l'historique des modifications a permis d'identifier 
-les différentes étapes de construction du firmware, les dépendances entre 
-les dépôts et les outils déjà intégrés à la chaîne.
-
-Dans un second temps, des échanges réguliers ont été menés avec trois 
-développeurs de l'équipe COM et le Product Owner. Ces discussions ont 
-permis de confronter les informations disponibles dans la documentation 
-au fonctionnement réel de la chaîne, de mieux comprendre les pratiques 
-de l'équipe et d'identifier les évolutions attendues par ses utilisateurs.
-
-Une collaboration étroite avec mon tuteur, coordinateur DevSecOps, a 
-également permis de clarifier les choix d'architecture existants ainsi 
-que les contraintes techniques et organisationnelles associées aux 
-services fournis par l'entreprise. Cet accompagnement a notamment 
-permis de distinguer les éléments imposés par l'environnement de l'entreprise 
-des choix d'intégration pouvant être adaptés aux besoins du module de communication.
-
-Cette démarche a mis en évidence que certaines orientations techniques ne 
-résultaient pas d'un choix libre entre plusieurs technologies concurrentes. 
-Elles étaient en partie déterminées par les outils homologués par l'entreprise, 
-les services d'exécution disponibles et les contraintes propres au développement 
-d'un firmware embarqué. La marge de décision portait donc principalement sur la 
-manière d'intégrer, de configurer et d'automatiser ces outils afin de répondre aux 
-besoins spécifiques de l'équipe COM.
-
-Le recueil des besoins ne s'est pas limité à une phase initiale du stage. Il s'est 
-poursuivi de manière itérative, au fil de la prise en main de l'existant, des retours 
-des développeurs et de l'évolution du projet. Cette approche a permis d'identifier 
-les composants de la chaîne à conserver, ceux à améliorer ainsi que les nouvelles 
-fonctionnalités à intégrer.
-
-\subsection{Limites identifiées}
-
-L'analyse de la situation initiale n'a pas révélé de dysfonctionnement bloquant nécessitant 
-une refonte urgente de l'infrastructure. Plusieurs chaînes d'intégration étaient déjà en place 
-et permettaient notamment de compiler l'application, d'exécuter les tests unitaires, de lancer 
-l'analyse statique du code et de construire la distribution Linux embarquée.
-
-L'enjeu principal de la mission était donc moins de corriger une infrastructure défaillante que de 
-la faire évoluer afin d'accompagner l'augmentation progressive des besoins du projet. Les évolutions 
-identifiées concernaient principalement l'amélioration de la reproductibilité des constructions, 
-l'élargissement des vérifications automatisées, la restitution des résultats aux développeurs et 
-la mise en place d'indicateurs permettant de suivre l'évolution du firmware.
-
-Le premier besoin concernait l'environnement de compilation de l'application. Celui-ci reposait 
-sur une image de conteneur regroupant les outils et les bibliothèques nécessaires à la construction 
-du logiciel. Cette image devait être enrichie, optimisée, versionnée et maintenue afin d'intégrer 
-les nouvelles dépendances du projet. L'intégration du Software Development Kit (SDK) destiné à 
-l'architecture cible devait notamment permettre d'utiliser un environnement commun pour la compilation 
-native et pour la compilation croisée.
-
-Le deuxième besoin portait sur la prise en charge de plusieurs configurations de construction. 
-La compilation native sur architecture AMD64 était nécessaire pour exécuter rapidement les tests 
-unitaires, les tests d'intégration et la mesure de couverture. La compilation croisée vers l'architecture 
-cible AArch64 devait, quant à elle, produire les artefacts destinés au produit embarqué. La chaîne devait 
-donc organiser et automatiser ces différentes configurations de construction.
-
-Le troisième besoin concernait l'amélioration des scripts utilisés pour piloter les outils de compilation, 
-de test et d'analyse. Ces scripts devaient permettre de réduire les opérations manuelles, de fiabiliser 
-l'enchaînement des traitements et de faciliter leur exécution aussi bien en local que dans la chaîne 
-d'intégration. Les améliorations portaient notamment sur le lancement des analyses, l'attente de leur 
-achèvement, la récupération des résultats et la génération de rapports directement accessibles aux développeurs.
-
-Le quatrième besoin concernait l'intégration de l'analyse de composition binaire avec l'outil BDBA. 
-Cette analyse devait être exécutée sur l'artefact destiné à la cible afin d'identifier les composants 
-tiers intégrés au produit et les vulnérabilités connues qui leur étaient associées. Les résultats 
-devaient ensuite être récupérés, structurés et publiés dans le rapport de l'exécution.
-
-Le cinquième besoin portait sur l'ajout de la mesure de couverture des tests unitaires. Cette évolution 
-devait permettre de mesurer la proportion de lignes, de fonctions et de branches exercées par les tests. 
-Les résultats ne devaient pas seulement être générés ponctuellement, mais également être présentés 
-de manière lisible et historisés afin d'en suivre l'évolution.
-
-Enfin, un besoin d'observabilité a été identifié. Les résultats produits par les chaînes étaient 
-principalement consultables à l'échelle d'une exécution individuelle. Cette approche permettait 
-d'analyser une construction particulière, mais elle ne permettait pas d'observer facilement les 
-tendances sur une période plus longue. Une solution de collecte, de formalisation et d'historisation 
-des métriques devait donc être mise en place. Les indicateurs collectés devaient être restitués dans 
-des tableaux de bord Grafana afin de fournir à l'équipe une vision synthétique de l'évolution du cycle 
-de développement du firmware.
-
-Les besoins d'évolution identifiés peuvent ainsi être regroupés autour de quatre axes principaux :
-
-\begin{itemize}
-    \item la reproductibilité, par l'amélioration et le versionnement de l'environnement de compilation ;
-    \item l'automatisation, par la prise en charge de plusieurs configurations de construction 
-    et l'amélioration des scripts ;
-    \item la qualité et la sécurité, par l'intégration des tests, de la couverture, de l'analyse statique 
-    et de l'analyse de composition binaire ;
-    \item l'observabilité, par la collecte, l'historisation et la visualisation des indicateurs produits 
-    par les chaînes.
+\begin{itemize}[nosep]
+  \item \textbf{Reproductibilité} : enrichir, optimiser et versionner l'image de
+        compilation, et y intégrer le \gls{sdk} de la cible pour disposer d'un
+        environnement commun à la compilation native et croisée ;
+  \item \textbf{Automatisation} : prendre en charge plusieurs configurations
+        (compilation native AMD64 pour les tests et la couverture, compilation
+        croisée AArch64 pour le produit) et fiabiliser les scripts qui lancent
+        les analyses, attendent leur fin, récupèrent les résultats et produisent
+        les rapports ;
+  \item \textbf{Qualité et sécurité} : mesurer la couverture des tests (lignes,
+        fonctions, branches) et analyser la composition binaire de l'artefact
+        livré avec BDBA pour identifier les composants tiers et leurs
+        vulnérabilités ;
+  \item \textbf{Observabilité} : dépasser la consultation d'une exécution
+        isolée en collectant, historisant et restituant les indicateurs dans des
+        tableaux de bord Grafana.
 \end{itemize}
 
-Ces besoins constituent la base des exigences fonctionnelles et non fonctionnelles présentées dans la 
-section suivante.
-
+% ===========================================================================
 \section{Formalisation des exigences}
+\label{sec:bes-exigences}
 
-À partir des besoins identifiés lors de l'analyse de l'existant, les évolutions attendues ont été traduites 
-en exigences fonctionnelles et non fonctionnelles. Cette formalisation permet de préciser les résultats 
-attendus indépendamment des détails de leur réalisation technique.
+\subsection{Parties prenantes}
 
-Les exigences fonctionnelles décrivent les services que la solution doit fournir, tels que la construction 
-du logiciel, l'exécution des tests, la réalisation des analyses de sécurité et la publication des artefacts. 
-Les exigences non fonctionnelles définissent les propriétés attendues de la chaîne, notamment en matière 
-de reproductibilité, de performance, de maintenabilité, de réutilisabilité, de sécurité et d'observabilité.
+Les développeurs COM sont les utilisateurs directs de la chaîne ; le Product
+Owner en exploite les résultats pour le suivi du projet ; le coordinateur
+DevSecOps veille à la cohérence avec les pratiques de l'entreprise. Les services
+internes (exécuteurs, serveurs d'analyse, référentiel d'artefacts) n'expriment
+pas de besoin fonctionnel, mais imposent des règles d'utilisation
+(tableau~\ref{tab:parties-prenantes}).
 
-\subsection{Parties prenantes et attentes}
-
-L'équipe COM constitue la principale partie prenante de la chaîne CI/CD étudiée. Elle développe le 
-firmware du module de communication et utilise les résultats de la chaîne pour vérifier les modifications 
-apportées au code avant leur intégration.
-
-Les développeurs constituent les utilisateurs directs de la solution. Ils doivent recevoir, dans un 
-délai compatible avec le rythme de développement, un retour fiable sur l'état de la compilation, les 
-résultats des tests ainsi que les défauts et vulnérabilités détectés par les outils d'analyse. 
-La lisibilité et l'accessibilité de ces résultats constituent des attentes importantes. Une analyse 
-dont le résultat est difficilement accessible ou interprétable apporte en effet une valeur limitée 
-au cycle de développement.
-
-Le Product Owner intervient dans la priorisation des évolutions et dans le suivi de l'avancement du 
-firmware. Il doit disposer d'éléments permettant d'identifier les risques susceptibles d'affecter les 
-objectifs du projet, notamment les échecs récurrents des constructions, l'évolution de la qualité du 
-code et les vulnérabilités associées aux composants tiers.
-
-Le coordinateur DevSecOps accompagne l'intégration des outils et veille à la cohérence des choix 
-retenus avec les pratiques et les contraintes de l'entreprise. Il contribue également à la maintenabilité 
-de la solution, à la sécurisation de son fonctionnement et à son intégration dans l'infrastructure 
-mise à disposition.
-
-Bien que les principales interactions aient lieu au sein de l'équipe COM, plusieurs services internes 
-interviennent indirectement dans le fonctionnement de la chaîne. Il s'agit notamment du service d'exécuteurs, 
-des serveurs d'analyse de sécurité et du référentiel d'artefacts. Ces services ne définissent pas 
-directement les besoins fonctionnels du module, mais ils imposent des règles d'utilisation et des 
-contraintes d'intégration qui doivent être prises en compte.
-
-Les principales parties prenantes et leurs attentes sont présentées dans le tableau~\ref{tab:parties-prenantes}.
-
-\begin{table}[htbp]
-    \centering
-    \caption{Parties prenantes et attentes principales}
-    \label{tab:parties-prenantes}
-    \begin{tabular}{|p{3.2cm}|p{4.3cm}|p{7cm}|}
-        \hline
-        \textbf{Partie prenante} & \textbf{Rôle par rapport à la chaîne} & \textbf{Attentes principales} \\
-        \hline
-        Développeurs COM & Utilisateurs directs de la chaîne & Obtenir rapidement des résultats lisibles 
-        concernant les compilations, les tests, la couverture et les analyses de sécurité. \\
-        \hline
-        Product Owner & Priorisation et suivi du projet & Disposer d'une visibilité sur l'avancement du 
-        firmware, l'évolution de sa qualité et les principaux risques. \\
-        \hline
-        Coordinateur DevSecOps & Accompagnement technique et gouvernance & Disposer d'une chaîne automatisée, 
-        maintenable, sécurisée et compatible avec les services fournis par l'entreprise. \\
-        \hline
-        Services internes d'infrastructure & Fourniture des ressources d'exécution et des outils & Garantir 
-        le respect des politiques de sécurité, des restrictions d'accès et des conditions d'utilisation des 
-        services. \\
-        \hline
-    \end{tabular}
+\begin{table}[H]
+\centering
+\caption{Parties prenantes et attentes principales}
+\label{tab:parties-prenantes}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.4cm} X@{}}
+\toprule
+\textbf{Partie prenante} & \textbf{Attentes principales} \\
+\midrule
+Développeurs COM & Résultats rapides et lisibles sur la compilation, les tests,
+  la couverture et les analyses de sécurité \\
+Product Owner & Visibilité sur l'avancement, l'évolution de la qualité et les
+  principaux risques \\
+Coordinateur DevSecOps & Chaîne automatisée, maintenable, sécurisée et
+  compatible avec les services de l'entreprise \\
+Services internes & Respect des politiques de sécurité, des restrictions d'accès
+  et des conditions d'utilisation \\
+\bottomrule
+\end{tabularx}
 \end{table}
 
 \subsection{Exigences fonctionnelles}
 
-Les exigences fonctionnelles décrivent les opérations que la solution doit permettre d'exécuter. Elles sont 
-structurées autour de trois chaînes principales et d'une solution d'observabilité : la chaîne de construction 
-applicative, la chaîne de construction de la distribution Linux embarquée, la chaîne de construction de 
-l'environnement de compilation et la solution de collecte des indicateurs.
+Les exigences fonctionnelles (tableau~\ref{tab:bes-ef}) sont regroupées par
+chaîne et pour la solution d'observabilité.
 
-\subsubsection{Chaîne de construction applicative}
-
-La chaîne applicative doit permettre de construire et de vérifier automatiquement la couche applicative 
-du firmware. Elle doit prendre en charge plusieurs configurations de compilation, exécuter les tests et 
-les analyses intégrées, puis produire les artefacts attendus.
-
-\begin{description}
-    \item[EF1] La chaîne doit compiler automatiquement l'application en mode natif sur architecture 
-    AMD64 et en compilation croisée vers l'architecture cible AArch64.
-    \item[EF2] La chaîne doit prendre en charge les configurations de construction nécessaires au projet, 
-    notamment les modes \texttt{DEBUG} et \texttt{RELEASE}.
-    \item[EF3] La chaîne doit exécuter automatiquement l'analyse statique du code et récupérer les défauts 
-    détectés.
-    \item[EF4] La chaîne doit soumettre l'artefact destiné à la cible à l'analyse de composition binaire 
-    afin d'identifier les composants tiers et les vulnérabilités connues.
-    \item[EF5] La chaîne doit exécuter les tests unitaires et produire un rapport présentant leurs résultats.
-    \item[EF6] La chaîne doit permettre l'exécution des tests d'intégration compatibles avec l'environnement 
-    d'intégration continue.
-    \item[EF7] La chaîne doit mesurer la couverture du code obtenue lors de l'exécution des tests unitaires.
-    \item[EF8] La chaîne doit publier une synthèse lisible présentant les résultats des compilations, des tests, 
-    de la couverture et des analyses exécutées.
-    \item[EF9] La chaîne doit produire un artefact final identifiable et associé à la révision du code, à la 
-    configuration de construction et à l'environnement utilisés.
-\end{description}
-
-\subsubsection{Chaîne de construction de la distribution embarquée}
-
-La chaîne de construction de la distribution doit permettre de générer les différentes variantes de la 
-distribution Linux embarquée nécessaires aux activités de développement, de validation et de livraison.
-
-\begin{description}
-    \item[EF10] La chaîne doit construire automatiquement la distribution Linux embarquée.
-    \item[EF11] La chaîne doit produire les différentes variantes d'image attendues par le projet, notamment 
-    les variantes de développement et de production.
-    \item[EF12] La chaîne doit générer le SDK utilisé pour la compilation croisée de l'application.
-    \item[EF13] La chaîne doit publier les images, le SDK et les autres livrables utiles dans le référentiel 
-    d'artefacts prévu à cet effet.
-\end{description}
-
-\subsubsection{Chaîne de construction de l'environnement de compilation}
-
-La chaîne de construction de l'environnement de compilation doit produire une image de conteneur regroupant 
-les outils et les dépendances nécessaires à la construction de l'application.
-
-\begin{description}
-    \item[EF14] La chaîne doit construire une image de compilation contenant les compilateurs, les 
-    bibliothèques, les outils d'analyse et le SDK nécessaires.
-    \item[EF15] La chaîne doit vérifier la présence et les versions des principaux outils installés dans 
-    l'image.
-    \item[EF16] L'image candidate doit être validée au moyen d'une construction applicative complète avant 
-    sa publication.
-    \item[EF17] L'image validée doit être versionnée et publiée dans un registre accessible aux développeurs 
-    et aux chaînes d'intégration.
-\end{description}
-
-\subsubsection{Solution d'observabilité}
-
-La solution d'observabilité doit permettre de dépasser la consultation ponctuelle des résultats d'une 
-exécution et de suivre leur évolution dans le temps.
-
-\begin{description}
-    \item[EF18] La solution doit collecter automatiquement les indicateurs produits par les chaînes 
-    d'intégration.
-    \item[EF19] Les indicateurs issus des différentes sources doivent être transformés dans un format commun.
-    \item[EF20] Les données collectées doivent être historisées afin de permettre leur comparaison dans 
-    le temps.
-    \item[EF21] Les indicateurs doivent être restitués dans des tableaux de bord Grafana.
-    \item[EF22] La solution doit permettre de visualiser l'évolution des constructions, des tests, de 
-    la couverture, des défauts d'analyse statique et des vulnérabilités détectées.
-\end{description}
+\begin{table}[H]
+\centering
+\caption{Exigences fonctionnelles}
+\label{tab:bes-ef}
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Réf.} & \textbf{La solution doit\ldots} \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Chaîne applicative}} \\
+EF1 & compiler l'application en natif AMD64 et en croisé AArch64 \\
+EF2 & prendre en charge les modes \texttt{DEBUG} et \texttt{RELEASE} \\
+EF3 & exécuter l'analyse statique et récupérer les défauts détectés \\
+EF4 & soumettre l'artefact cible à l'analyse de composition binaire \\
+EF5 & exécuter les tests unitaires et produire un rapport \\
+EF6 & exécuter les tests d'intégration compatibles avec l'intégration continue \\
+EF7 & mesurer la couverture du code par les tests unitaires \\
+EF8 & publier une synthèse lisible des compilations, tests, couverture et analyses \\
+EF9 & produire un artefact rattaché à la révision, à la configuration et à l'environnement \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Chaîne de la distribution}} \\
+EF10 & construire automatiquement la distribution Linux embarquée \\
+EF11 & produire les variantes d'image, notamment de développement et de production \\
+EF12 & générer le \gls{sdk} utilisé pour la compilation croisée \\
+EF13 & publier les images et le \gls{sdk} dans le référentiel d'artefacts \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Chaîne de l'image de compilation}} \\
+EF14 & construire une image contenant compilateurs, bibliothèques, outils d'analyse et \gls{sdk} \\
+EF15 & vérifier la présence et les versions des principaux outils \\
+EF16 & valider l'image candidate par une construction applicative complète \\
+EF17 & versionner et publier l'image validée dans un registre \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Observabilité}} \\
+EF18 & collecter automatiquement les indicateurs produits par les chaînes \\
+EF19 & transformer les indicateurs dans un format commun \\
+EF20 & historiser les données pour les comparer dans le temps \\
+EF21 & restituer les indicateurs dans des tableaux de bord Grafana \\
+EF22 & visualiser l'évolution des constructions, tests, couverture, défauts et vulnérabilités \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{Exigences non fonctionnelles}
 
-Les exigences non fonctionnelles précisent les propriétés attendues de la solution. Elles portent sur la 
-reproductibilité, la performance, la maintenabilité, la réutilisabilité, la sécurité et l'observabilité.
+Les exigences non fonctionnelles (tableau~\ref{tab:bes-enf}) précisent les
+propriétés attendues de la solution.
 
-\subsubsection{Reproductibilité}
+\begin{table}[H]
+\centering
+\caption{Exigences non fonctionnelles}
+\label{tab:bes-enf}
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Réf.} & \textbf{Exigence} \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Reproductibilité}} \\
+ENF1 & Versions des outils de compilation et d'analyse épinglées dans l'image \\
+ENF2 & Même image utilisée sur les postes et dans la chaîne d'intégration \\
+ENF3 & Artefacts rattachés à la révision, à la configuration et à la version de l'environnement \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Performance}} \\
+ENF4 & Durée des chaînes compatible avec le rythme de développement \\
+ENF5 & Configurations indépendantes exécutées en parallèle \\
+ENF6 & Caches partagés pour la construction de la distribution \\
+ENF7 & Optimisations sans perte de fiabilité ni de traçabilité \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Maintenabilité et réutilisabilité}} \\
+ENF8 & Logique placée dans des scripts indépendants de l'orchestrateur \\
+ENF9 & Workflows paramétrables et réutilisables \\
+ENF10 & Évolutions documentées pour l'équipe \\
+ENF11 & Composants génériques facilitant une mutualisation COM/MET \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Sécurité}} \\
+ENF12 & Aucun secret en clair dans les dépôts ni dans les couches de l'image \\
+ENF13 & Jetons injectés à l'exécution, de portée minimale \\
+ENF14 & Aucun secret exposé dans les journaux d'exécution \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Observabilité}} \\
+ENF15 & Données des différents outils transformées dans un format homogène \\
+ENF16 & Collecte automatique, sans intervention manuelle \\
+ENF17 & Indicateurs définis et documentés permettant de suivre la maturité du module \\
+ENF18 & Tableaux de bord lisibles et exploitables par l'équipe \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Infrastructure d'exécution}} \\
+ENF19 & Exécution sur des machines éphémères sans état local \\
+ENF20 & Dépendances aux chemins et caches locaux limitées ou externalisées \\
+ENF21 & Compatibilité avec les politiques réseau et de sécurité de l'entreprise \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-\begin{description}
-    \item[ENF1] Les versions des principaux outils de compilation et d'analyse doivent être épinglées 
-    dans l'environnement de compilation.
-    \item[ENF2] Une même image de compilation doit pouvoir être utilisée par les développeurs sur leur 
-    poste et par la chaîne d'intégration.
-    \item[ENF3] Les artefacts produits doivent pouvoir être rattachés à la révision du code, à la 
-    configuration de construction et à la version de l'environnement utilisées.
-\end{description}
-
-\subsubsection{Performance}
-
-\begin{description}
-    \item[ENF4] La durée des chaînes doit rester compatible avec le rythme de développement de l'équipe.
-    \item[ENF5] Les configurations indépendantes doivent être exécutées en parallèle lorsque l'infrastructure 
-    le permet.
-    \item[ENF6] La construction de la distribution doit utiliser des mécanismes de cache partagés afin de 
-    limiter les téléchargements et les reconstructions inutiles.
-    \item[ENF7] Les optimisations mises en œuvre ne doivent pas réduire la fiabilité ni la traçabilité des 
-    résultats.
-\end{description}
-
-\subsubsection{Maintenabilité et réutilisabilité}
-
-\begin{description}
-    \item[ENF8] La logique de compilation, de test et d'analyse doit être placée autant que possible 
-    dans des scripts exécutables indépendamment de la plateforme d'orchestration.
-    \item[ENF9] Les workflows doivent être paramétrables et réutilisables afin de limiter la duplication 
-    de configuration.
-    \item[ENF10] Les évolutions apportées doivent être documentées afin de permettre leur maintenance par 
-    les autres membres de l'équipe.
-    \item[ENF11] Les composants génériques de la chaîne doivent être conçus de manière à faciliter une 
-    éventuelle mutualisation entre les équipes COM et MET.
-\end{description}
-
-\subsubsection{Sécurité}
-
-\begin{description}
-    \item[ENF12] Aucun secret ne doit être enregistré en clair dans les dépôts ou intégré dans les 
-    couches de l'image de compilation.
-    \item[ENF13] Les jetons et les clés utilisés par les chaînes doivent être injectés au moment de 
-    l'exécution et leur portée doit être limitée aux opérations nécessaires.
-    \item[ENF14] Les journaux d'exécution ne doivent pas exposer les secrets utilisés pour accéder 
-    aux dépôts, aux serveurs d'analyse ou aux référentiels d'artefacts.
-\end{description}
-
-\subsubsection{Observabilité et évaluation}
-
-\begin{description}
-    \item[ENF15] Les données produites par les différents outils doivent être transformées dans un 
-    format homogène.
-    \item[ENF16] La collecte des indicateurs doit être automatique et ne doit pas nécessiter une 
-    intervention manuelle à chaque exécution.
-    \item[ENF17] Les données historisées doivent permettre de suivre l'évolution du niveau de maturité 
-    du module à partir d'indicateurs définis et documentés.
-    \item[ENF18] Les tableaux de bord doivent présenter les informations de manière lisible et 
-    exploitable par l'équipe.
-\end{description}
-
-\subsubsection{Adaptation à l'infrastructure d'exécution}
-
-\begin{description}
-    \item[ENF19] Les chaînes doivent pouvoir s'exécuter sur des machines éphémères ne conservant 
-    aucun état local entre deux exécutions.
-    \item[ENF20] Les dépendances aux chemins de travail, aux caches locaux et aux configurations 
-    présentes sur la machine doivent être limitées ou remplacées par des mécanismes externes.
-    \item[ENF21] Les solutions mises en œuvre doivent rester compatibles avec les politiques réseau 
-    et de sécurité de l'infrastructure d'entreprise.
-\end{description}
-
-L'exploration de l'intelligence artificielle dans la CI/CD n'est pas considérée comme une exigence 
-indispensable au fonctionnement de la solution. Elle constitue un axe exploratoire complémentaire 
-visant à étudier l'apport potentiel de l'intelligence artificielle dans l'analyse des résultats et 
-dans l'assistance au diagnostic des échecs de construction.
-
-De même, l'étude d'une chaîne d'intégration commune aux équipes COM et MET est considérée comme 
-une perspective de mutualisation. La solution développée doit faciliter cette évolution par la 
-réutilisabilité de ses composants, mais la migration complète vers une chaîne commune reste en 
-dehors du périmètre principal de la mission.
+Deux sujets sont volontairement hors de ces exigences : l'apport de
+l'intelligence artificielle au diagnostic des échecs, traité comme un axe
+exploratoire, et la migration vers une chaîne commune aux équipes COM et MET,
+que la solution doit seulement faciliter (ENF11).
 
 \subsection{Contraintes et hypothèses}
 
-La conception des évolutions de la chaîne CI/CD s'inscrit dans un environnement technique et 
-organisationnel déjà défini. La plateforme de gestion du code source, la solution d'orchestration, 
-les ressources d'exécution et plusieurs outils d'analyse sont fournis ou imposés par l'entreprise. 
-Le travail réalisé ne consiste donc pas à sélectionner librement une nouvelle plateforme, mais à 
-adapter la chaîne aux possibilités et aux limites des services disponibles.
+La plateforme de code source, l'orchestrateur, les ressources d'exécution et
+plusieurs outils d'analyse sont imposés par l'entreprise. Le travail consiste
+donc à adapter la chaîne à ces services, non à choisir une plateforme.
 
-\subsubsection{Contraintes liées à l'infrastructure d'exécution}
+\paragraph{Infrastructure d'exécution.}
 \label{sssec:bes-contraintes-infra}
+Les traitements s'exécutent sur des machines éphémères, détruites à la fin de
+chaque job. L'isolation est meilleure, mais aucun fichier, dépendance ou
+résultat intermédiaire n'est conservé : les constructions longues exigent un
+cache partagé, indépendant de la durée de vie des exécuteurs. Les fonctions de
+GitHub Actions qui supposent une machine persistante ou un accès privilégié ne
+sont pas disponibles. Les chemins de travail varient, ce qui impose de les
+normaliser pour les outils qui corrèlent les défauts par chemin de fichier.
+Enfin, des règles encadrent les droits d'exécution, l'accès réseau et
+l'usage des secrets.
 
-L'une des principales contraintes concerne le service d'exécution utilisé par les chaînes GitHub Actions. 
-Les traitements sont exécutés sur des machines éphémères, allouées au démarrage d'un travail puis détruites 
-à la fin de celui-ci. Ce fonctionnement améliore l'isolation entre les exécutions, mais empêche de conserver 
-localement les fichiers, les dépendances téléchargées ou les résultats intermédiaires.
+\paragraph{Distribution Linux embarquée.} Sa construction mobilise un grand
+nombre de composants et dure longtemps sans réutilisation des résultats
+intermédiaires ; sa maîtrise dépend des caches de téléchargement et d'état
+partagé et d'un parallélisme adapté aux exécuteurs. Ses livrables (images et
+\gls{sdk}) évoluent à un rythme différent du code applicatif, ce qui justifie
+une chaîne séparée.
 
-Chaque exécution doit donc recréer son environnement, récupérer les sources et télécharger les ressources 
-nécessaires. Pour les constructions longues, en particulier celles de la distribution Linux embarquée, 
-cette contrainte impose l'utilisation de mécanismes de cache partagés et accessibles indépendamment de 
-la durée de vie des exécuteurs.
+\paragraph{Outils d'entreprise.} Les outils sont imposés ; la marge de décision
+porte sur l'organisation et le paramétrage des workflows, la répartition des
+jobs, les scripts exécutables en local, la configuration des outils, la
+sécurisation des accès, la gestion des caches, la restitution des résultats et
+la collecte des indicateurs.
 
-L'utilisation de cette infrastructure limite également l'exploitation directe de certaines fonctionnalités 
-habituellement proposées par GitHub Actions. Les mécanismes dépendant de la persistance locale, de la 
-configuration durable d'une machine ou d'un accès privilégié à l'exécuteur ne peuvent pas être utilisés 
-de la même manière que sur un exécuteur permanent.
-
-Les chemins de travail peuvent par ailleurs varier d'une exécution à l'autre. Cette caractéristique a une 
-incidence sur certains outils d'analyse, qui utilisent les chemins des fichiers pour corréler les défauts 
-entre plusieurs traitements. Une normalisation des chemins est donc nécessaire afin de conserver une 
-correspondance stable entre les résultats.
-
-Enfin, l'infrastructure impose des règles concernant les droits d'exécution, l'accès aux réseaux internes, 
-l'utilisation des secrets et la communication avec les serveurs d'analyse. Ces contraintes doivent être 
-prises en compte dans la conception des workflows et des scripts.
-
-\subsubsection{Contraintes liées à la distribution Linux embarquée}
-
-La construction de la distribution Linux embarquée se distingue d'une compilation applicative classique 
-par son volume, sa durée et le nombre de dépendances qu'elle mobilise. Elle nécessite le téléchargement 
-et la compilation d'un grand nombre de composants, puis la génération de plusieurs variantes d'image 
-adaptées aux différents usages du projet.
-
-Une construction complète sans réutilisation des résultats intermédiaires peut nécessiter un temps important. 
-La maîtrise de cette durée dépend donc fortement des mécanismes de cache de téléchargement et de cache 
-d'état partagé. La configuration du parallélisme doit également être adaptée aux ressources disponibles 
-sur les exécuteurs afin de réduire la durée des constructions sans provoquer de saturation.
-
-La distribution doit par ailleurs produire plusieurs livrables, notamment les images de développement 
-et de production ainsi que le SDK destiné à la compilation croisée de l'application. Ces éléments 
-évoluent selon des rythmes différents et ne doivent pas nécessairement être reconstruits à chaque 
-modification du code applicatif. Cette contrainte justifie la séparation entre la chaîne de construction 
-applicative et la chaîne de construction de la distribution embarquée.
-
-\subsubsection{Contraintes liées aux outils d'entreprise}
-
-La plateforme de gestion du code source, la solution d'orchestration, les outils d'analyse de sécurité 
-et les services de publication sont définis par l'environnement de l'entreprise. Leur utilisation doit 
-respecter les politiques internes de sécurité, les restrictions d'accès et les interfaces mises à disposition.
-
-La marge de décision porte principalement sur les éléments suivants :
-
-\begin{itemize}
-    \item l'organisation et le paramétrage des workflows ;
-    \item la répartition des traitements entre les différents jobs ;
-    \item l'utilisation de scripts réutilisables et exécutables localement ;
-    \item la configuration des outils de compilation et d'analyse ;
-    \item la sécurisation de l'accès aux dépôts et aux services internes ;
-    \item la gestion des caches nécessaires aux constructions ;
-    \item la restitution des résultats aux développeurs ;
-    \item la collecte et l'historisation des indicateurs.
-\end{itemize}
-
-\subsubsection{Hypothèses de travail}
-
-La conception et la mise en œuvre de la solution reposent sur les hypothèses suivantes :
-\begin{itemize}
-    \item les dépôts nécessaires à une construction sont disponibles au moment de l'exécution ;
-    \item les services internes d'analyse et de publication sont accessibles depuis les exécuteurs autorisés ;
-    \item les secrets nécessaires sont configurés dans les mécanismes sécurisés de la plateforme ;
-    \item les tests nécessitant une cible matérielle réelle restent, dans un premier temps, en dehors du 
-    périmètre d'exécution automatique de la chaîne ;
-    \item les images et le SDK produits par la chaîne de distribution constituent les références utilisées 
-    pour la compilation destinée à la cible ;
-    \item les outils et les services imposés par l'entreprise restent disponibles pendant la durée du projet ;
-    \item les indicateurs collectés sont suffisamment représentatifs pour suivre l'évolution de la qualité 
-    du firmware et du fonctionnement des chaînes.
-\end{itemize}
-
-Ces contraintes réduisent la liberté de choix technologique, mais elles laissent une marge de décision 
-importante concernant l'intégration, la configuration et l'automatisation des outils. Les décisions prises 
-dans ce cadre sont présentées dans la section suivante.
+\paragraph{Hypothèses.} Les dépôts, les services internes et les secrets sont
+disponibles depuis les exécuteurs autorisés ; les tests sur cible matérielle
+restent hors de la chaîne automatique ; les images et le \gls{sdk} produits par
+la chaîne de distribution servent de référence pour la compilation croisée ;
+les indicateurs collectés sont représentatifs de la qualité du firmware.
 
 % ===========================================================================
 \section{Conception des évolutions de la chaîne CI/CD}
