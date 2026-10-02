@@ -1,6 +1,5 @@
 % ============================================================================
 %  Chapitre 1 — Introduction
-%  Cible : 4 à 5 pages. À RÉDIGER EN DERNIER (J12), après le chapitre 6.
 % ============================================================================
 \chapter{Introduction}
 \label{chap:introduction}
@@ -54,6 +53,11 @@ d'exigences de cybersécurité et d'infrastructure d'exécution
 \section{Objectifs et périmètre}
 \label{sec:intro-perimetre}
 
+L'objectif est de faire évoluer une chaîne CI/CD existante pour qu'elle soit
+reproductible (un environnement de compilation unique et versionné), sécurisée
+(analyse statique et analyse de composition intégrées à chaque exécution) et
+mesurable (indicateurs collectés, historisés et visualisés).
+
 Le périmètre de ce travail est la \emph{chaîne d'intégration} du firmware, et
 non le firmware lui-même. Sont explicitement exclus : la conception
 fonctionnelle de l'application embarquée, ainsi que la conception matérielle du produit.
@@ -75,3 +79,14 @@ Les contributions de ce travail sont les suivantes :
   \item la mise en place d'une solution d'observabilité restituant l'évolution
         des indicateurs de qualité dans le temps.
 \end{enumerate}
+
+\section{Organisation du mémoire}
+\label{sec:intro-plan}
+
+Le chapitre~\ref{chap:contexte} présente le contexte industriel et ma mission.
+Le chapitre~\ref{chap:etat-art} résume l'état de l'art sur l'intégration
+continue appliquée à l'embarqué. Le chapitre~\ref{chap:besoins} analyse
+l'existant, formalise les exigences et décrit la conception et la mise en œuvre
+des évolutions. Le chapitre~\ref{chap:evaluation} évalue la chaîne obtenue à
+partir des exécutions réelles, et le chapitre~\ref{chap:conclusion} conclut et
+ouvre des perspectives.

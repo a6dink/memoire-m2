@@ -48,6 +48,9 @@
 \usepackage{subcaption}
 \usepackage{xcolor}
 \usepackage{enumitem}
+% Coupure des noms de fichiers, chemins et identifiants en \texttt
+\usepackage[htt]{hyphenat}
+\setlength{\emergencystretch}{3em}
 
 % ---------------------------------------------------------------------------
 %  Listings (extraits YAML, Bash, Dockerfile, HCL)
@@ -154,11 +157,11 @@
   \newcommand{\Produit}{le PM77xx}
   \newcommand{\ProduitCourt}{PM77xx}
   \newcommand{\Firmware}{SDP}
-  \newcommand{\Carte}{bru99379-kp0}
-  \newcommand{\SrvCoverity}{\texttt{coverity-embu.se.com}}
-  \newcommand{\SrvBDBA}{\texttt{bdba.schneider-electric.com}}
-  \newcommand{\SrvArtifacts}{\texttt{global-artifacts.se.com}}
-  \newcommand{\SrvGit}{\texttt{github.schneider-electric.com}}
+  \newcommand{\Carte}{la carte cible}
+  \newcommand{\SrvCoverity}{\texttt{<serveur-sast-interne>}}
+  \newcommand{\SrvBDBA}{\texttt{<serveur-sca-interne>}}
+  \newcommand{\SrvArtifacts}{\texttt{<artifactory-interne>}}
+  \newcommand{\SrvGit}{\texttt{<github-entreprise>}}
 }
 
 % ---------------------------------------------------------------------------

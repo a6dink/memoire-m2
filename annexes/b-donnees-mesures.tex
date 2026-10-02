@@ -59,14 +59,12 @@ tableau~\ref{tab:ann-executions} en présente un extrait.
 Exécution \#1316 de \texttt{pm77xx-app} (DEBUG/amd64) : lignes 32,3\,\%
 (19\,308 / 59\,772), fonctions 20,9\,\% (1\,511 / 7\,216), branches 29,6\,\%
 (5\,559 / 18\,775). Seuils de la synthèse : 50\,\% (bas) et 75\,\% (haut).
-\aecrire{Ajouter l'historique de couverture sur la période (export Grafana).}
 
 \section{Relevé des défauts d'analyse statique}
 \label{ann:releve-defauts}
 
-Vues Coverity du flux « BlueBird w1.2 », à la date de la capture : 3 défauts de
-priorité 1 (vue 48097) et 46 de priorité 2 (vue 48360).
-\aecrire{Ajouter les valeurs au début de la période.}
+Vues Coverity du projet, à la date de la capture : 3 défauts de priorité 1
+(vue P1) et 46 de priorité 2 (vue P2).
 
 \section{Relevé des vulnérabilités de composants}
 \label{ann:releve-vulns}
@@ -75,10 +73,3 @@ Archive \texttt{pm77xx-app} RELEASE/aarch64, produit \texttt{pm77xx-app} version
 1.0.0 : 4 composants identifiés dont 3 vulnérables (\texttt{cjson},
 \texttt{openldap}, \texttt{hostapd}) ; 122 vulnérabilités, soit 5 critiques,
 19 élevées, 86 moyennes et 12 faibles.
-
-\section{Protocole de mesure de reproductibilité}
-\label{ann:protocole-repro}
-
-\aecrire{Décrire pas à pas la procédure appliquée en
-section~\ref{sec:eval-reproductibilite}, de manière qu'un tiers puisse la
-rejouer.}

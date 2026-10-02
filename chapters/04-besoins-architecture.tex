@@ -1,6 +1,5 @@
 % ============================================================================
 %  Chapitre 4 — Exigences et mise en œuvre de l'évolution de la chaîne
-%  Cible : 25 à 30 pages. Fusion des anciens chapitres « Analyse des besoins
 %  et architecture cible » et « Mise en œuvre » : le travail ne consiste pas
 %  à concevoir une chaîne ex nihilo mais à diagnostiquer, faire évoluer et
 %  outiller une chaîne CI/CD existante (héritée d'un ingénieur précédent).
@@ -392,6 +391,7 @@ Le travail réalisé ne consiste donc pas à sélectionner librement une nouvell
 adapter la chaîne aux possibilités et aux limites des services disponibles.
 
 \subsubsection{Contraintes liées à l'infrastructure d'exécution}
+\label{sssec:bes-contraintes-infra}
 
 L'une des principales contraintes concerne le service d'exécution utilisé par les chaînes GitHub Actions. 
 Les traitements sont exécutés sur des machines éphémères, allouées au démarrage d'un travail puis détruites 
@@ -552,19 +552,19 @@ Orchestration & GitHub Enterprise Actions ; exécuteurs éphémères
   \texttt{workflow\_call} pour réutiliser la chaîne applicative ; jobs légers
   (rapports, BDBA, publication) déportés sur \texttt{ubuntu-22.04} \\
 \addlinespace
-Analyse statique & Coverity 2024.12.0 ; serveur \texttt{coverity-embu.se.com},
-  projet 10744, flux « BlueBird w1.2 » &
+Analyse statique & Coverity 2024.12.0 ; serveur Coverity interne, avec un
+  projet et un flux dédiés &
   Trois phases séparées ; build instrumenté limité à DEBUG/aarch64 ;
-  \texttt{--strip-path} pour stabiliser les chemins ; vues P1 (48097) et P2
-  (48360) extraites par \texttt{pyCovXtract.py} \\
+  \texttt{--strip-path} pour stabiliser les chemins ; vues P1 et P2
+  extraites par \texttt{pyCovXtract.py} \\
 \addlinespace
 Composition & Black Duck Binary Analysis (BDBA) &
   Analyse de l'archive RELEASE/aarch64 uniquement ; scan par
   \texttt{Foxy/action-bdba-scan} puis récupération du rapport et des métriques
   par deux scripts Python via l'API \\
 \addlinespace
-Artefacts & Artifactory (\texttt{global-artifacts.se.com}) ; dépôts
-  \texttt{em-pm-generic-prod-fed} et \texttt{em-bb1.2-docker-prod-fed} &
+Artefacts & Instance Artifactory de l'entreprise ; un dépôt générique et un
+  registre d'images &
   Arborescence \texttt{sdp-artifacts/}, \texttt{sdk/}, \texttt{bsp-images/} ;
   nommage \texttt{<nom>-<version>-<horodatage>} ; publication limitée à la
   branche \texttt{main} pour l'application \\
@@ -575,7 +575,7 @@ Distribution & Yocto, branche \texttt{scarthgap} du dépôt
   par variante d'image ; génération du \gls{sdk} sur la variante de
   développement \\
 \addlinespace
-Métriques & VictoriaMetrics (\texttt{dp.victoriametrics.dev.se.com}) ;
+Métriques & Instance VictoriaMetrics interne ;
   authentification Basic &
   Action composite \texttt{upload-vm-metrics} ; deux formats d'import selon la
   source ; étiquettes \texttt{bu}, \texttt{project}, \texttt{repo},
@@ -656,31 +656,32 @@ Infrastructure & Exécuteurs éphémères &
 \label{ssec:bes-chaines}
 
 Le système comporte trois chaînes aux rythmes et aux durées différents
-(tableau~\ref{tab:bes-chaines}).
+(tableau~\ref{tab:bes-chaines}). Le dépôt contient également un workflow
+\texttt{evo-bench-image}, destiné aux images du banc de test ; il est hors du
+périmètre de ce mémoire.
 
 \begin{table}[H]
 \centering
 \caption{Chaînes d'intégration}
 \label{tab:bes-chaines}
 \small
-\begin{tabularx}{\textwidth}{@{}l X p{3.2cm} l@{}}
+\begin{tabularx}{\textwidth}{@{}l X p{4cm}@{}}
 \toprule
-\textbf{Chaîne} & \textbf{Objet} & \textbf{Déclenchement} & \textbf{Durée observée} \\
+\textbf{Chaîne} & \textbf{Objet} & \textbf{Déclenchement} \\
 \midrule
 \texttt{pm77xx-app} & Compilation, analyses, tests et publication de la couche applicative &
-  Cron \texttt{0 0 * * 1-5}, manuel, appelé & $\approx$ 23 min \\
+  Cron \texttt{0 0 * * 1-5}, manuel, appelé \\
 \texttt{pm77xx-yocto} & Cinq variantes d'image et \gls{sdk} &
-  Cron \texttt{0 22 * * 1-5}, manuel & $\approx$ 1 h 05 \\
+  Cron \texttt{0 22 * * 1-5}, manuel \\
 \texttt{publish-image} & Construction, validation et publication de l'image de compilation &
-  Manuel & $\approx$ 56 min \\
+  Manuel \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\emph{Durées relevées sur les runs :} \texttt{pm77xx-app} \#1316 (23 min 06 s),
-\texttt{pm77xx-yocto} \#543 (1 h 05 min 27 s), \texttt{publish-image}
-(56 min 29 s). La chaîne applicative est ordonnée à l'heure de minuit UTC et
-la chaîne Yocto à 22 h UTC : elles ne se disputent donc pas les exécuteurs.
+La chaîne applicative est planifiée à minuit UTC et la chaîne Yocto à 22 h UTC :
+elles ne se disputent donc pas les exécuteurs. Les durées mesurées sont
+présentées au chapitre~\ref{chap:evaluation}.
 
 La séparation s'impose pour trois raisons. Premièrement, les rythmes diffèrent :
 le code applicatif change tous les jours alors que la distribution et l'image
@@ -695,7 +696,7 @@ valider l'image candidate.
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{vue-global}
-\caption{Historique des exécutions de \texttt{pm77xx-app} (1\,186 exécutions, durées de 22 à 23 minutes en exécution planifiée)}
+\caption{Historique des exécutions de \texttt{pm77xx-app} depuis la création du workflow (1\,186 exécutions)}
 \label{fig:bes-historique}
 \end{figure}
 
@@ -945,8 +946,8 @@ analyze:
     - /__w/ci/ci/pm77xx/pm77xx-app/
 commit:
   connect:
-    stream: "BlueBird w1.2"
-    url: "https://coverity-embu.se.com"
+    stream: "<flux-projet>"
+    url: "https://<serveur-coverity>"
 \end{lstlisting}
 
 \texttt{c-cpp-virtual} et \texttt{c-cpp-fnptr} résolvent les appels virtuels
@@ -956,8 +957,8 @@ l'identité d'un défaut (fichier, fonction, type) reste stable d'un run à l'au
 malgré des exécuteurs éphémères (ENF20). Sans lui, un même défaut serait
 compté comme nouveau à chaque modification du chemin.
 
-\paragraph{Restitution ciblée.} \texttt{extract\_cov.sh} interroge, pour chaque
-vue (P1 : 48097, P2 : 48360), l'API REST
+\paragraph{Restitution ciblée.} \texttt{extract\_cov.sh} interroge, pour chacune
+des vues P1 et P2, l'API REST
 \texttt{/api/v2/streams/viewContents/\{viewid\}} via \texttt{pyCovXtract.py},
 génère les rapports \texttt{coverity\_report\_<run>\_P1.html} et
 \texttt{\_P2.html}, et expose \texttt{cov\_p1\_issue\_nbr},
@@ -998,7 +999,10 @@ trois étapes :
 Le tableau~\ref{tab:impl-bdba-metriques} définit les indicateurs. Sur
 l'exécution capturée (figure~\ref{fig:impl-bdba}), BDBA identifie 4 composants
 dont 3 vulnérables (\texttt{cjson}, \texttt{openldap}, \texttt{hostapd}) pour
-122 vulnérabilités : 5 critiques, 19 élevées, 86 moyennes et 12 faibles.
+122 vulnérabilités : 5 critiques, 19 élevées, 86 moyennes et 12 faibles. Les
+compteurs BDBA de la synthèse (figure~\ref{fig:impl-synthese}) proviennent d'une
+autre exécution et diffèrent donc légèrement ; ce mémoire retient les valeurs
+du rapport.
 
 \begin{table}[H]
 \centering
@@ -1036,8 +1040,9 @@ temporaire, puis \texttt{tar -czf} archive \texttt{lib} et \texttt{bin} depuis
 \texttt{/opt/app-ext/sdp}. L'archive est conservée comme artefact de run
 (\texttt{<BUILD>-build-<ARCH>}). Pour la branche \texttt{main}, le job
 \texttt{upload-artifact} publie l'archive RELEASE/aarch64 dans Artifactory par
-\texttt{jf rt upload} sous
-\texttt{em-pm-generic-prod-fed/sdp-artifacts/pm77xx-app-artifact-<version>-<horodatage>.tar.gz}.
+\texttt{jf rt upload} dans le répertoire \texttt{sdp-artifacts/} du dépôt
+générique, sous un nom de la forme
+\texttt{pm77xx-app-artifact-<version>-<horodatage>.tar.gz}.
 La taille de l'archive est aussi mesurée (\texttt{du -cb}) et envoyée comme
 métrique \texttt{sdp\_artifact\_size} (78,0 Mo sur la capture du tableau de bord).
 
@@ -1055,15 +1060,15 @@ La configuration est décrite avec kas 5.2 en trois niveaux, composés dans la
 ligne de commande par des « : » :
 
 \begin{lstlisting}[language=bash,caption={Appels kas : image et SDK},label={lst:impl-kas}]
-kas build kas/board/ti/bru99379-kp0.yml:kas/project/image-evo-dev.yml
-kas build kas/board/ti/bru99379-kp0.yml:kas/project/image-evo-dev.yml:\
+kas build kas/board/<carte>.yml:kas/project/image-evo-dev.yml
+kas build kas/board/<carte>.yml:kas/project/image-evo-dev.yml:\
          kas/project/option/populate-sdk.yml
 \end{lstlisting}
 
-Le premier niveau décrit la carte (machine \texttt{bru99379-kp0}), le second
+Le premier niveau décrit la carte (\Carte), le second
 le projet d'image, le troisième des options, dont \texttt{populate-sdk.yml}.
 Pour la variante de production, le fichier de carte est suffixé
-(\texttt{bru99379-kp0-prod.yml}) grâce à l'entrée \texttt{include} de la matrice.
+(\texttt{<carte>-prod.yml}) grâce à l'entrée \texttt{include} de la matrice.
 Les cinq variantes (tableau~\ref{tab:impl-variantes}) sont construites en
 parallèle.
 
@@ -1105,14 +1110,14 @@ travail à \texttt{user} (\texttt{chown -R}), déclare le dépôt en
 (\texttt{find -type f | tar --transform 's|.*/||'} met tous les fichiers à la racine de
 l'archive) et publiées dans \texttt{bsp-images/}. Pour la variante dev, une
 archive « flashable » regroupe \texttt{deploy/images} et le fichier machine
-\texttt{bru99379-kp0.conf} dans \texttt{bsp-images/standalone-flashing-images/}.
+\texttt{<carte>.conf} dans \texttt{bsp-images/standalone-flashing-images/}.
 Un développeur applicatif obtient ainsi un compilateur croisé et une image de
 référence sans reconstruire la distribution.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\textwidth]{jfrog-artifactory}
-\caption{Organisation du dépôt Artifactory \texttt{em-pm-generic-prod-fed}}
+\caption{Organisation du dépôt générique Artifactory}
 \label{fig:impl-artifactory}
 \end{figure}
 
@@ -1174,9 +1179,9 @@ RUN chmod +x sdk-installer.sh \
     && ./sdk-installer.sh -d /usr/local/oecore-x86_64 -y
 
 RUN --mount=type=ssh \
-    ssh-keyscan github.schneider-electric.com >> /root/.ssh/known_hosts \
+    ssh-keyscan <forge-interne> >> /root/.ssh/known_hosts \
     && git clone --branch Release_csbApp_2.6.0 \
-       git@github.schneider-electric.com:edge-os-critical/csb-app.git csb-app
+       git@<forge-interne>:<organisation>/csb-app.git csb-app
 \end{lstlisting}
 
 L'image définit l'utilisateur \texttt{user}, mais son exécution en
@@ -1225,25 +1230,19 @@ Les jobs lourds (compilation, Yocto, construction d'image) s'exécutent sur
 neuve par job et la détruit ensuite. Les jobs légers (rapports de test, couverture, BDBA,
 publication) utilisent \texttt{ubuntu-22.04} avec l'image
 \texttt{se-ubuntu-noble:3.0.1} : ils n'ont pas besoin de la chaîne d'outils et
-ne doivent pas occuper un exécuteur coûteux. Ce modèle impose cinq
-conséquences de conception :
+ne doivent pas occuper un exécuteur coûteux. Les contraintes générales de ce
+modèle sont décrites en section~\ref{sssec:bes-contraintes-infra} ; leur
+traduction dans la chaîne est la suivante :
 
 \begin{itemize}[nosep]
   \item \textbf{Droits.} Le conteneur est lancé avec \texttt{options: -u root},
-        les droits d'écriture n'étant autrement pas accordés. Ce contournement,
-        signalé dans le YAML comme un « dirty workaround », oblige la chaîne Yocto
-        à rétrograder les privilèges (section~\ref{sec:impl-pipeline-yocto}).
-  \item \textbf{Chemins.} Le répertoire de travail est \texttt{/\_\_w/ci/ci}. Il
-        est paramétré (\texttt{workspace\_path}) pour fonctionner en mode appelé, et
-        neutralisé côté Coverity par \texttt{--strip-path}.
-  \item \textbf{Aucun cache local.} Chaque exécution refait les téléchargements
-        et les compilations (voir ci-dessous).
-  \item \textbf{Réseau et secrets.} Les accès aux serveurs internes (Coverity,
-        BDBA, Artifactory, VictoriaMetrics) passent par les identifiants injectés au
-        démarrage du job.
-  \item \textbf{Temps.} Les garde-fous \texttt{timeout-minutes} sur les étapes
-        susceptibles de bloquer remplacent la supervision qu'on aurait sur une
-        machine persistante.
+        ce qui oblige la chaîne Yocto à rétrograder les privilèges
+        (section~\ref{sec:impl-pipeline-yocto}).
+  \item \textbf{Chemins.} Le répertoire de travail \texttt{/\_\_w/ci/ci} est
+        paramétré (\texttt{workspace\_path}) et neutralisé côté Coverity par
+        \texttt{--strip-path}.
+  \item \textbf{Temps.} Des garde-fous \texttt{timeout-minutes} limitent les étapes
+        susceptibles de bloquer.
 \end{itemize}
 
 \subsubsection{Limite : le cache de la distribution}
@@ -1293,10 +1292,15 @@ Snapshot &
 \end{tabularx}
 \end{table}
 
-\aecrire{Compléter avec les critères de comparaison de l'étude, la solution
-recommandée et son gain attendu. Indiquer clairement qu'elle n'est pas mise en
-œuvre à ce stade et la renvoyer en perspectives. Si une mesure existe
-(durée à froid et à chaud), l'ajouter ici.}
+\paragraph{Conclusion de l'étude.} La solution retenue est le partage NFS. Le
+snapshot ne fournit qu'un cache en lecture seule, figé à la date de
+l'instantané : les états produits par une exécution ne profitent pas aux
+suivantes tant que l'instantané n'est pas régénéré. Un volume NFS, au contraire,
+est alimenté à chaque construction et reste à jour sans opération
+supplémentaire. Le principal point à traiter lors de la mise en œuvre est la
+gestion des écritures concurrentes des cinq cellules de la matrice. Cette
+solution n'est pas encore mise en œuvre ; elle constitue la première perspective
+de ce travail (section~\ref{sec:concl-perspectives}).
 
 \subsubsection{Gestion des secrets et sécurité}
 
@@ -1415,7 +1419,7 @@ Pour les exigences non fonctionnelles, ENF1, ENF2, ENF4, ENF5, ENF8, ENF9,
 ENF12 à ENF14 et ENF19 à ENF21 sont couvertes par les choix décrits plus haut.
 ENF3 (traçabilité des artefacts) est partielle, pour la raison donnée pour
 EF9. ENF6 (cache partagé de la distribution) n'est pas couverte : l'étude
-NFS/snapshot en a posé les bases. ENF11 (mutualisation entre les équipes COM et
+NFS/snapshot a conduit à retenir la solution NFS. ENF11 (mutualisation entre les équipes COM et
 MET) n'a pas été traitée.
 
 \subsubsection{Difficultés transverses}
@@ -1433,14 +1437,7 @@ Les problèmes récurrents étaient :
         déplacés dans \texttt{scripts/} pour être testables (principe P1).
 \end{itemize}
 
-\subsubsection{Limites et perspectives}
-
-\begin{itemize}[nosep]
-  \item cache partagé de la distribution (NFS ou snapshot) ;
-  \item blocage de la chaîne sur les défauts Coverity nouvellement introduits ;
-  \item activation de Robot Framework par défaut et extension aux autres cellules ;
-  \item nommage des artefacts avec l'empreinte du commit et l'étiquette de l'image ;
-  \item exécution de l'image de compilation sans privilèges root ;
-  \item passage du jeton BDBA par l'environnement et non par la ligne de commande.
-\end{itemize}
+Les limites qui découlent de ce bilan sont discutées en
+section~\ref{sec:eval-discussion}, et les perspectives correspondantes en
+section~\ref{sec:concl-perspectives}.
 

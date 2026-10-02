@@ -1,6 +1,5 @@
 % ============================================================================
 %  Chapitre 2 — Contexte industriel et analyse de l'existant
-%  Cible : 8 à 10 pages. À rédiger J2-J3.
 % ============================================================================
 \chapter{Contexte industriel}
 \label{chap:contexte}
@@ -52,11 +51,9 @@ apportent leur support à l'ensemble de ces entités.
 \label{fig:ctx-schneider-organisation}
 \end{figure}
 
-\aecrire{Nommer précisément ici la division et l'entité d'accueil (business
-unit, site, équipe) au sein desquelles le produit \emph{Power Meter} est
-développé, et préciser en une phrase le positionnement de ce produit dans la
-gamme de l'entité (type de client, gamme de puissance ou de fonctionnalités
-couverte).}
+Mon stage s'est déroulé au sein de la \emph{business unit} Energy Management,
+dans la division \emph{Digital Energy}, qui porte le programme Bluebird et
+le développement du produit \emph{Power Meter}.
 
 
 \section{Le projet Bluebird}
@@ -67,7 +64,7 @@ couverte).}
 
 Bluebird est le programme de renouvellement de la gamme de comptage
 d'énergie standalone de \Entreprise{}, porté par la division \emph{Digital
-Power} sous la marque PowerLogic. Il répond à un contexte réglementaire et
+Energy} sous la marque PowerLogic. Il répond à un contexte réglementaire et
 énergétique porteur : la directive européenne sur la performance
 énergétique des bâtiments, volet du \emph{Green~Deal}, impose
 progressivement la mise en place de systèmes de gestion technique du
@@ -159,22 +156,10 @@ communication. Mon rôle ne portait donc pas sur le développement fonctionnel
 du firmware lui-même, mais sur l'outillage qui permet de le construire, de le
 vérifier et de le livrer de manière automatisée et reproductible.
 
-Cinq missions principales m'ont été confiées :
-
-\begin{itemize}[nosep]
-  \item la conteneurisation de l'environnement de compilation applicatif,
-        afin que développeurs et chaîne d'intégration travaillent sur une
-        base identique ;
-  \item la consolidation de deux chaînes d'intégration distinctes et
-        complémentaires, l'une pour la couche applicative, l'autre pour la
-        distribution Linux embarquée ;
-  \item l'intégration automatisée de l'analyse statique et de l'analyse de
-        composition logicielle, avec restitution des résultats directement
-        au développeur ;
-  \item la gestion de l'infrastructure d'exécution des traitements ;
-  \item la mise en place d'une solution d'observabilité restituant
-        l'évolution des indicateurs de qualité dans le temps.
-\end{itemize}
+Mes missions correspondent aux cinq contributions présentées en
+section~\ref{sec:intro-contributions} : environnement de compilation
+conteneurisé, chaînes applicative et de distribution, analyses de sécurité,
+contraintes de l'infrastructure d'exécution et observabilité.
 
 Cette mission s'est déroulée sur 6 mois, au sein d'une
 phase du programme Bluebird où la vague~1.2 (\ProduitCourt{}) était déjà en

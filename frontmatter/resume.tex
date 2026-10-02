@@ -16,10 +16,26 @@ et de livraison continues pour le firmware du module de communication d'un
 compteur d'énergie (\emph{Power Meter}) développé chez \Entreprise, module
 chargé d'intégrer les protocoles Modbus, Ethernet, BACnet et une API REST.
 
+Le travail ne part pas d'une feuille blanche : il reprend une chaîne GitHub
+Actions existante, en analyse les limites, formalise des exigences avec
+l'équipe, puis la fait évoluer. Les évolutions portent sur une image de
+compilation unique intégrant le kit de développement de la cible, une matrice
+de construction native et croisée, la mesure de couverture, les tests
+d'intégration, l'analyse de composition binaire, la publication des artefacts
+et la collecte d'indicateurs vers VictoriaMetrics et Grafana.
+
+L'évaluation porte sur 164 exécutions sur cinq semaines. La chaîne applicative
+rend un résultat complet en 21,8 minutes en médiane, la parallélisation de la
+matrice réduisant sa durée d'environ un tiers. La chaîne restitue à chaque
+exécution la couverture (32,3~\% des lignes), les défauts d'analyse statique et
+l'inventaire des composants tiers avec leurs vulnérabilités. La distribution
+Linux reste reconstruite sans cache en 68,2 minutes, ce qui fait du cache partagé
+la principale perspective.
+
 \vspace{1cm}
 \noindent\textbf{Mots-clés :} intégration continue, livraison continue, DevOps,
 systèmes embarqués, Yocto, analyse statique, chaîne d'approvisionnement
-logicielle, infrastructure as code, observabilité.
+logicielle, analyse de composition, observabilité.
 
 \vfill
 
@@ -35,9 +51,23 @@ infrastructure for the firmware of the communication module of an energy
 meter (\emph{Power Meter}) developed at \Entreprise, a module responsible for
 integrating the Modbus, Ethernet, BACnet, and REST API protocols.
 
+Rather than starting from scratch, the work takes over an existing GitHub
+Actions pipeline, analyses its limits, formalises requirements with the team
+and evolves it: a single build image embedding the target SDK, a native and
+cross-compilation build matrix, code coverage, integration tests, binary
+composition analysis, artifact publication, and metrics collection into
+VictoriaMetrics and Grafana.
+
+The evaluation covers 164 runs over five weeks. The application pipeline
+delivers a complete result in a median of 21.8 minutes, the parallel matrix
+cutting its duration by about one third. Each run reports coverage (32.3\% of
+lines), static analysis defects and the inventory of third-party components
+with their vulnerabilities. The Linux distribution is still rebuilt without
+cache in 68.2 minutes, which makes a shared build cache the main next step.
+
 \vspace{1cm}
 \noindent\textbf{Keywords:} continuous integration, continuous delivery, DevOps,
 embedded systems, Yocto, static analysis, software supply chain,
-infrastructure as code, observability.
+software composition analysis, observability.
 
 \clearpage

@@ -1,6 +1,5 @@
 % ============================================================================
 %  Chapitre 6 — Évaluation et résultats
-%  Cible : 10 à 12 pages. À rédiger J10-J11.
 %
 %  AVERTISSEMENT : ce chapitre ne peut être rédigé qu'une fois les mesures
 %  collectées (voir scripts/collecte-mesures.sh et annexe B).
@@ -44,7 +43,7 @@ Durée et issue des exécutions & API de GitHub Actions, via
   11 août -- 17 sept. 2026 \\
 Couverture de code & Résumé \texttt{gcovr} et tableau de bord Grafana &
   Exécution \#1316 \\
-Défauts d'analyse statique & Vues Coverity P1 (48097) et P2 (48360) &
+Défauts d'analyse statique & Vues Coverity P1 et P2 &
   Date de la capture \\
 Vulnérabilités de composants & Rapport BDBA de l'archive RELEASE/aarch64 &
   Date de la capture \\
@@ -151,11 +150,8 @@ construction (section~\ref{sec:eval-performance}) comme principal levier.
 
 \paragraph{Effort de maintenance.} La chaîne a elle-même un coût de possession.
 Le repère le plus visible est le nombre de scripts maintenus (une douzaine sous
-\texttt{scripts/}), les versions épinglées de l'image de compilation à mettre à
+\texttt{scripts/}), les versions épinglées de l'image de compilation à mettre
 à jour et les jetons d'accès aux services d'analyse et de publication.
-\aecrire{Estimer, si possible, le temps de maintenance hebdomadaire de la chaîne
-et le temps économisé sur les tâches auparavant manuelles (inventaire des
-composants avant jalon, préparation des environnements, collecte des rapports).}
 
 \subsection{Retour des utilisateurs}
 \label{sec:eval-retour}
@@ -163,8 +159,6 @@ composants avant jalon, préparation des environnements, collecte des rapports).
 Aucun recueil formel n'a été mené. Les échanges avec les trois développeurs de
 l'équipe COM et le Product Owner (chapitre~\ref{chap:besoins}) ont orienté les
 besoins mais ne constituent pas une mesure de satisfaction.
-\aecrire{Si un retour des développeurs peut être recueilli, même informel,
-l'ajouter ici avec le nombre de personnes interrogées et la méthode.}
 
 \subsection{Apports pour l'entreprise}
 \label{sec:eval-apports-entreprise}
@@ -195,30 +189,16 @@ Cette section consolide les difficultés rencontrées pendant la mise en
 celles propres à la mesure.
 
 \subsection{Difficultés techniques}
-Les difficultés techniques se regroupent en cinq familles.
-
-\begin{itemize}[nosep]
-  \item \textbf{Exécuteur sans droits.} L'infrastructure impose un conteneur en
-        superutilisateur, or BitBake refuse de s'exécuter sous cet utilisateur : la
-        chaîne Yocto transfère la propriété de l'espace de travail et lance kas par
-        \texttt{su user -c} (section~\ref{sec:impl-pipeline-yocto}).
-  \item \textbf{Chemins instables.} Les chemins d'artefacts conservent
-        l'arborescence du conteneur (\texttt{/\_\_w/ci/ci/...}), ce qui oblige les jobs
-        aval à les reconstituer (section~\ref{ssec:impl-ut}), et l'analyse statique
-        nécessite \texttt{--strip-path} pour que les défauts restent corrélables
-        (section~\ref{ssec:impl-coverity}).
-  \item \textbf{Services dans un conteneur.} Les tests d'intégration exigent le
-        démarrage de services système sans gestionnaire de services complet, avec
-        arrêt garanti même en cas d'échec (section~\ref{ssec:impl-robot}).
-  \item \textbf{Exécutions bloquées.} Les gardes \texttt{timeout-minutes} (1
-        minute pour les tests unitaires, 5 minutes pour le lancement des services)
-        évitent d'immobiliser un exécuteur.
-  \item \textbf{Codes de sortie et formats.} Un code de sortie non nul de
-        \texttt{extract\_cov.sh} colorait l'étape en rouge alors que le résultat était
-        déjà publié ; les compteurs négatifs de \texttt{gcov} interrompaient la
-        génération du rapport de couverture sans l'option
-        \texttt{negative\_hits.warn}.
-\end{itemize}
+Les difficultés techniques, détaillées au chapitre~\ref{chap:besoins}, relèvent
+de cinq familles : un conteneur imposé en superutilisateur alors que BitBake
+refuse ce mode (section~\ref{sec:impl-pipeline-yocto}) ; des chemins qui varient
+selon l'exécuteur et l'image, pour les artefacts comme pour l'analyse statique
+(sections~\ref{ssec:impl-ut} et~\ref{ssec:impl-coverity}) ; des services
+système à démarrer dans un conteneur pour les tests d'intégration
+(section~\ref{ssec:impl-robot}) ; des étapes susceptibles de bloquer un
+exécuteur, bornées par \texttt{timeout-minutes} ; enfin des codes de sortie et
+des formats d'outils mal interprétés par la plateforme
+(section~\ref{ssec:impl-bilan}).
 
 \subsection{Difficultés liées à la mesure}
 Trois obstacles ont affecté la collecte des mesures.
@@ -267,11 +247,6 @@ de distribution réussies dans une plage de 63,7 à 77,0 min. Cette régularité
 est compatible avec un environnement stable, sans le démontrer : la durée ne
 prouve pas l'identité des artefacts.
 
-\aecrire{Réaliser, si possible, la comparaison directe : construire une même
-révision à deux dates avec la même étiquette d'image, puis comparer les
-empreintes des artefacts (et expliquer les écarts : horodatages, chemins).
-Décrire le protocole en annexe~\ref{ann:protocole-repro}.}
-
 \subsection{Performance de la chaîne}
 \label{sec:eval-performance}
 
@@ -312,8 +287,8 @@ La distribution est construite à froid à chaque exécution : la médiane est d
 entre les exécutions réussies. Cette faible dispersion confirme l'absence d'effet de cache d'une exécution à l'autre, puisque les répertoires
 \texttt{DL\_DIR} et \texttt{SSTATE\_DIR} sont détruits avec l'exécuteur
 (section~\ref{ssec:impl-runners}). La comparaison construction à froid et
-à chaud n'a pas pu être réalisée : les solutions NFS et snapshot ont été
-étudiées mais pas mises en œuvre. Cette absence est présentée comme une limite
+à chaud n'a pas pu être réalisée : l'étude a retenu une solution NFS, qui n'est
+pas encore mise en œuvre. Cette absence est présentée comme une limite
 et comme la première perspective (section~\ref{sec:eval-discussion}).
 
 \subsubsection{Effet du parallélisme de la matrice}
@@ -335,8 +310,6 @@ Sur l'exécution \#1316, la couverture mesurée par \texttt{gcovr} est de
 sont sous le seuil bas de 50\,\% configuré dans la synthèse. Ce niveau est
 connu et rendu visible plutôt que masqué : la mise en place de la mesure est un
 résultat en soi, puisqu'aucune valeur n'existait auparavant.
-\aecrire{Ajouter l'évolution de la couverture sur la période (export du tableau
-de bord Grafana), sous forme de figure.}
 
 \subsubsection{Défauts détectés par l'analyse statique}
 Les vues Coverity restreintes au code de l'équipe comptent 3 défauts de
@@ -344,8 +317,6 @@ priorité 1 et 46 de priorité 2 à la date de la capture. Ce stock correspond �
 la dette initiale du projet et justifie la politique de non-blocage décrite en
 section~\ref{ssec:impl-coverity}. Distinguer défauts préexistants et défauts
 nouvellement introduits suppose un historique que le relevé ne fournit pas.
-\aecrire{Ajouter le nombre de défauts P1 et P2 au début et à la fin de la
-période (historique Coverity).}
 
 \subsubsection{Vulnérabilités des composants tiers}
 L'analyse BDBA de l'archive RELEASE/aarch64 identifie 4 composants dont 3
@@ -354,11 +325,6 @@ vulnérabilités : 5 critiques, 19 élevées, 86 moyennes et 12 faibles
 (figure~\ref{fig:impl-bdba}). L'apport principal est l'existence même de
 cet inventaire : avant la mise en place, il n'était pas produit de manière
 automatisée, et chaque exécution le recalcule désormais.
-
-\subsubsection{Détection des régressions}
-\aecrire{Citer, si elles existent, des régressions détectées par la chaîne
-avant intégration (par exemple un échec de compilation croisée ou un test en
-échec sur une branche de travail), avec la date et la branche.}
 
 % ===========================================================================
 \section{Discussion}

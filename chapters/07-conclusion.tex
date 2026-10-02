@@ -1,6 +1,5 @@
 % ============================================================================
 %  Chapitre 7 — Conclusion et perspectives
-%  Cible : 3 à 4 pages. À rédiger J12.
 % ============================================================================
 \chapter{Conclusion et perspectives}
 \label{chap:conclusion}
@@ -53,7 +52,7 @@ Analyses de sécurité &
 Contraintes des exécuteurs éphémères &
   Contraintes documentées (droits, chemins, absence de cache) ; la
   distribution est reconstruite à froid à chaque exécution ; étude NFS et
-  snapshot réalisée, non mise en œuvre. \\
+  snapshot réalisée, solution NFS retenue mais non encore mise en œuvre. \\
 \addlinespace
 Observabilité &
   Métriques envoyées à VictoriaMetrics et tableau de bord Grafana : couverture
@@ -143,8 +142,8 @@ Les perspectives découlent des limites du chapitre~\ref{chap:evaluation}.
 
 \subsection{Moyen terme}
 \begin{itemize}[nosep]
-  \item Mise en œuvre d'un cache partagé pour la distribution (NFS ou
-        snapshot, selon l'étude menée), afin de réduire une construction qui repart
+  \item Mise en œuvre du cache partagé NFS retenu par l'étude, afin de
+        réduire une construction qui repart
         aujourd'hui à froid à chaque exécution.
   \item Intégration du banc de test matériel dans la chaîne, afin d'exécuter
         les tests sur cible réelle et non uniquement en compilation native.
@@ -175,7 +174,7 @@ indicateurs de qualité sont historisés et affichés dans un tableau de bord
 commun. Cette réponse reste partielle sur deux points identifiés : la
 distribution Linux est encore reconstruite à froid en 68,2 minutes et
 l'identité des artefacts d'une construction à l'autre n'a pas été vérifiée.
-Pour la squad SW comme pour \Entreprise, l'apport est une chaîne en service
+Pour l'équipe COM comme pour \Entreprise, l'apport est une chaîne en service
 quotidien dont l'état se lit sans outil supplémentaire ; la prochaine étape est
 le cache partagé de la distribution.
 
